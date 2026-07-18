@@ -4,9 +4,14 @@
 // The agent runs as root on the scanned server, so each engine is a read-only
 // audit executed in-place:
 //
-//   - Lynis     — system hardening audit; its hardening_index is the score.
-//   - rkhunter  — rootkit / local-exploit warnings.
-//   - ufw       — host firewall state and exposed ports.
+//   - Lynis       — system hardening audit; its hardening_index is the score.
+//   - rkhunter    — rootkit / local-exploit warnings.
+//   - chkrootkit  — second-opinion rootkit / infection scanner.
+//   - ClamAV      — on-disk malware scan of web/data dirs.
+//   - maldet      — Linux Malware Detect scan (best effort).
+//   - ufw         — host firewall state and exposed ports.
+//   - fail2ban    — brute-force jail status (read only).
+//   - wordpress   — per-site WordPress core/plugin/theme + webshell audit.
 //
 // A missing engine binary is installed via apt-get when possible; if it still
 // cannot run, that engine records an informational finding and the scan carries
@@ -26,6 +31,14 @@ import (
 // Logf is a simple printf-style logger the caller supplies.
 type Logf func(format string, a ...any)
 
+// Options carries scan-wide inputs an engine may need beyond the host itself.
+// It is passed to every engine runner; most ignore it.
+type Options struct {
+	// WPScanToken enables the WPScan vulnerability API in the wordpress engine.
+	// Empty falls back to update-available heuristics — the token is optional.
+	WPScanToken string
+}
+
 // engineResult is one engine's contribution to a scan.
 type engineResult struct {
 	findings []api.Finding
@@ -34,16 +47,20 @@ type engineResult struct {
 }
 
 // engineFunc runs one engine and returns its findings (+ optional score).
-type engineFunc func(ctx context.Context, logf Logf) (engineResult, error)
+type engineFunc func(ctx context.Context, opts Options, logf Logf) (engineResult, error)
 
-// registry maps an engine key to its runner. Adding a new engine
-// (maldet, chkrootkit, fail2ban, clamav, …) is a single entry here plus its
-// run function — no change to the dispatch loop. Keep keys in sync with the
-// master's engine list (JobController::ENGINES).
+// registry maps an engine key to its runner. Adding a new engine is a single
+// entry here plus its run function — no change to the dispatch loop. Keep keys
+// in sync with the master's engine list (JobController::ENGINES).
 var registry = map[string]engineFunc{
-	"lynis":    runLynis,
-	"rkhunter": runRkhunter,
-	"ufw":      runUfw,
+	"lynis":      runLynis,
+	"rkhunter":   runRkhunter,
+	"chkrootkit": runChkrootkit,
+	"clamav":     runClamAV,
+	"maldet":     runMaldet,
+	"ufw":        runUfw,
+	"fail2ban":   runFail2ban,
+	"wordpress":  runWordPress,
 }
 
 // Supported reports whether an engine key has a runner registered.
@@ -55,7 +72,7 @@ func Supported(key string) bool {
 // Run executes the requested engines and assembles a single scan report. The
 // returned Report always carries a score and (possibly empty) findings; status
 // is left as "success" for the master to downgrade to "warn" on high findings.
-func Run(ctx context.Context, engines []string, logf Logf) api.Report {
+func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Report {
 	if logf == nil {
 		logf = func(string, ...any) {}
 	}
@@ -70,7 +87,7 @@ func Run(ctx context.Context, engines []string, logf Logf) api.Report {
 			logf("engine %s: unknown, skipping", engine)
 			continue
 		}
-		res, err := run(ctx, logf)
+		res, err := run(ctx, opts, logf)
 
 		if err != nil {
 			// Fail-soft: surface the problem as an info finding and keep going.

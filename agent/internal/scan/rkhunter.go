@@ -11,7 +11,7 @@ import (
 // runRkhunter runs `rkhunter --check --sk --nocolors --rwo` (report-warnings-
 // only) and turns each warning line into a high-severity finding. A clean run
 // produces no findings.
-func runRkhunter(ctx context.Context, logf Logf) (engineResult, error) {
+func runRkhunter(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	bin, err := ensureInstalled(ctx, "rkhunter", "rkhunter", logf)
 	if err != nil {
 		return engineResult{}, err

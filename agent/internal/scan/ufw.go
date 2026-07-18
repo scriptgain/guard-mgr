@@ -14,7 +14,7 @@ import (
 // an informational "exposed port" finding. When ufw is absent it falls back to
 // firewalld (firewall-cmd) or nftables (nft) for a coarse active/inactive read,
 // and records a low finding if no supported firewall is found at all.
-func runUfw(ctx context.Context, logf Logf) (engineResult, error) {
+func runUfw(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	if _, err := exec.LookPath("ufw"); err != nil {
 		return ufwFallback(ctx, logf)
 	}

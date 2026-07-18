@@ -25,7 +25,34 @@
     ];
     $grouped = $run->findings->groupBy('severity');
     $counts = collect($order)->mapWithKeys(fn ($s) => [$s => ($grouped[$s] ?? collect())->count()]);
-    $engineLabel = ['lynis' => 'Lynis', 'rkhunter' => 'rkhunter', 'ufw' => 'ufw'];
+
+    // Engine metadata (label + category) from the single source of truth.
+    $engines = \App\Http\Controllers\JobController::ENGINES;
+    $engineLabel = collect($engines)->mapWithKeys(fn ($m, $k) => [$k => $m[0]])->all();
+    $engineCategory = collect($engines)->mapWithKeys(fn ($m, $k) => [$k => $m[2] ?? 'Other'])->all();
+    $categoryOrder = \App\Http\Controllers\JobController::ENGINE_CATEGORIES;
+
+    // Group findings by engine and present engines in category order, then key.
+    $byEngine = $run->findings->groupBy(fn ($f) => $f->engine ?: 'other');
+    $engineKeys = $byEngine->keys()->sortBy(function ($k) use ($engineCategory, $categoryOrder) {
+        $ci = array_search($engineCategory[$k] ?? 'Other', $categoryOrder);
+        return sprintf('%02d-%s', $ci === false ? 99 : $ci, $k);
+    })->values();
+
+    // Worst severity in a set, for the section accent dot.
+    $worst = function ($items) use ($order) {
+        foreach ($order as $s) {
+            if ($items->firstWhere('severity', $s)) return $s;
+        }
+        return 'info';
+    };
+
+    // Pull the leading "<site>: " path out of a WordPress finding's detail so the
+    // WordPress section can group per site.
+    $wpSite = function ($f) {
+        if (preg_match('#^(/\S.*?):\s#', (string) $f->detail, $m)) return $m[1];
+        return 'WordPress';
+    };
 @endphp
 <x-layouts.app :title="'Scan #' . $run->id">
     <x-page-header :title="'Scan Report #' . $run->id" icon="shield"
@@ -86,7 +113,15 @@
         </x-card>
     </div>
 
-    {{-- Findings, grouped by severity --}}
+    {{-- A single finding row, reused by the engine + WordPress sections. --}}
+    @php
+        $renderFinding = function ($f) use ($sevMeta) {
+            [$c, $lbl, $hex] = $sevMeta[in_array($f->severity, array_keys($sevMeta)) ? $f->severity : 'info'];
+            return view('runs._finding', ['f' => $f, 'lbl' => $lbl, 'hex' => $hex]);
+        };
+    @endphp
+
+    {{-- Findings, grouped by scan engine (in category order). --}}
     <div class="mt-6 space-y-6">
         @php $hasFindings = $run->findings->isNotEmpty(); @endphp
         @if (! $hasFindings)
@@ -98,33 +133,45 @@
                 @endif
             </x-card>
         @else
-            @foreach ($order as $sev)
-                @php $items = $grouped[$sev] ?? collect(); @endphp
-                @if ($items->isNotEmpty())
-                    @php [$c, $lbl, $hex] = $sevMeta[$sev]; @endphp
-                    <x-card :title="$lbl . ' (' . $items->count() . ')'" flush>
-                        <x-slot:actions><span class="h-2.5 w-2.5 rounded-full" style="background-color:{{ $hex }}"></span></x-slot:actions>
+            @foreach ($engineKeys as $ek)
+                @php
+                    $items = ($byEngine[$ek] ?? collect())->sortBy(fn ($f) => array_search($f->severity, $order))->values();
+                    $ws = $worst($items);
+                    [, , $whex] = $sevMeta[$ws];
+                    $cat = $engineCategory[$ek] ?? 'Other';
+                    $label = $engineLabel[$ek] ?? $ek;
+                @endphp
+                <x-card flush>
+                    <x-slot:title>
+                        <span class="inline-flex items-center gap-2">
+                            <span class="h-2.5 w-2.5 rounded-full" style="background-color:{{ $whex }}"></span>
+                            {{ $label }}
+                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{{ $cat }}</span>
+                            <span class="text-xs font-normal text-slate-400">{{ $items->count() }} finding{{ $items->count() === 1 ? '' : 's' }}</span>
+                        </span>
+                    </x-slot:title>
+
+                    @if ($ek === 'wordpress')
+                        {{-- WordPress: sub-group findings per detected site. --}}
+                        @php $bySite = $items->groupBy($wpSite); @endphp
+                        @foreach ($bySite as $site => $siteItems)
+                            <div class="border-b border-slate-100 last:border-0">
+                                <div class="flex items-center gap-2 bg-slate-50/70 px-5 py-2">
+                                    <x-icon name="globe" class="h-4 w-4 text-slate-400" />
+                                    <span class="font-mono text-xs text-slate-600">{{ $site }}</span>
+                                    <span class="text-xs text-slate-400">· {{ $siteItems->count() }}</span>
+                                </div>
+                                <ul class="divide-y divide-slate-100">
+                                    @foreach ($siteItems as $f){!! $renderFinding($f) !!}@endforeach
+                                </ul>
+                            </div>
+                        @endforeach
+                    @else
                         <ul class="divide-y divide-slate-100">
-                            @foreach ($items as $f)
-                                <li class="px-5 py-4">
-                                    <div class="flex flex-wrap items-start justify-between gap-3">
-                                        <div class="min-w-0 flex-1">
-                                            <p class="font-medium text-slate-900">{{ $f->title }}</p>
-                                            @if ($f->detail)<p class="mt-1 text-sm text-slate-600 whitespace-pre-wrap">{{ $f->detail }}</p>@endif
-                                            @if ($f->remediation)
-                                                <p class="mt-2 text-sm text-slate-700"><span class="font-medium text-emerald-700">Remediation:</span> {{ $f->remediation }}</p>
-                                            @endif
-                                        </div>
-                                        <div class="flex shrink-0 items-center gap-2">
-                                            @if ($f->code)<span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-500">{{ $f->code }}</span>@endif
-                                            @if ($f->engine)<x-badge color="neutral">{{ $engineLabel[$f->engine] ?? $f->engine }}</x-badge>@endif
-                                        </div>
-                                    </div>
-                                </li>
-                            @endforeach
+                            @foreach ($items as $f){!! $renderFinding($f) !!}@endforeach
                         </ul>
-                    </x-card>
-                @endif
+                    @endif
+                </x-card>
             @endforeach
         @endif
 

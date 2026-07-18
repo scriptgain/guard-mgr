@@ -18,12 +18,39 @@ use Illuminate\Validation\Rule;
  */
 class JobController extends Controller
 {
-    /** The security scanners a job may run, with a human label + one-liner. */
+    /**
+     * The security scanners a job may run: [label, one-liner, category]. The
+     * category groups engines in the picker and on the report. Keep the keys in
+     * sync with the agent's registry (internal/scan/scan.go) and engineList().
+     */
     public const ENGINES = [
-        'lynis' => ['Lynis', 'System hardening audit — computes the hardening index and flags weak controls.'],
-        'rkhunter' => ['rkhunter', 'Rootkit, backdoor, and local exploit scanner.'],
-        'ufw' => ['Firewall (ufw)', 'Checks the host firewall is active and reports exposed ports.'],
+        'lynis' => ['Lynis', 'System hardening audit — computes the hardening index and flags weak controls.', 'Hardening'],
+        'rkhunter' => ['rkhunter', 'Rootkit, backdoor, and local-exploit warning scanner.', 'Rootkit'],
+        'chkrootkit' => ['chkrootkit', 'Second-opinion rootkit and infection scanner.', 'Rootkit'],
+        'clamav' => ['ClamAV', 'On-disk malware scan of web and data directories (detect-only).', 'Malware'],
+        'maldet' => ['Linux Malware Detect', 'LMD malware signatures over web content (best effort).', 'Malware'],
+        'ufw' => ['Firewall (ufw)', 'Checks the host firewall is active and reports exposed ports.', 'Firewall'],
+        'fail2ban' => ['fail2ban', 'Reports brute-force jail status and active bans (read-only).', 'Brute-force'],
+        'wordpress' => ['WordPress Scanner', 'Per-site WordPress core/plugin integrity, updates, vulns, and webshell grep.', 'WordPress'],
     ];
+
+    /** Category display order for the engine picker + report grouping. */
+    public const ENGINE_CATEGORIES = ['Hardening', 'Rootkit', 'Malware', 'Firewall', 'Brute-force', 'WordPress'];
+
+    /** Engines grouped by category, preserving ENGINE_CATEGORIES order. */
+    public static function enginesByCategory(): array
+    {
+        $grouped = [];
+        foreach (self::ENGINE_CATEGORIES as $cat) {
+            foreach (self::ENGINES as $key => $meta) {
+                if (($meta[2] ?? 'Hardening') === $cat) {
+                    $grouped[$cat][$key] = $meta;
+                }
+            }
+        }
+
+        return $grouped;
+    }
 
     public function index()
     {
@@ -45,7 +72,7 @@ class JobController extends Controller
         $hosts = Host::visibleTo($user)->with('director:id,name')->orderBy('name')->get();
         $scheduleTemplates = \App\Models\ScheduleTemplate::orderBy('name')->get();
         $selectedHost = $request->integer('host');
-        $engines = self::ENGINES;
+        $engines = self::enginesByCategory();
 
         return view('jobs.create', compact('hosts', 'scheduleTemplates', 'selectedHost', 'engines'));
     }
@@ -98,7 +125,7 @@ class JobController extends Controller
         $user = auth()->user();
         $hosts = Host::visibleTo($user)->with('director:id,name')->orderBy('name')->get();
         $scheduleTemplates = \App\Models\ScheduleTemplate::orderBy('name')->get();
-        $engines = self::ENGINES;
+        $engines = self::enginesByCategory();
 
         return view('jobs.edit', compact('job', 'hosts', 'scheduleTemplates', 'engines'));
     }

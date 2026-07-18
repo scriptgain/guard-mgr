@@ -1,5 +1,5 @@
 <x-layouts.app title="New Director">
-    <x-page-header title="New Director" icon="cloud" subtitle="A node that executes its hosts' backups and gateways agentless connectors." />
+    <x-page-header title="New Director" icon="cloud" subtitle="A scan node that runs or queues scans for its Servers and gateways agentless connectors." />
 
     <form method="POST" action="{{ route('directors.store') }}" class="space-y-6">
         @csrf

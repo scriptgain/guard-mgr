@@ -22,7 +22,7 @@ const lynisReport = "/var/log/lynis-report.dat"
 //
 // The control id (first pipe-delimited field) becomes the finding code so the
 // UI can link it back to the Lynis control.
-func runLynis(ctx context.Context, logf Logf) (engineResult, error) {
+func runLynis(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	bin, err := ensureInstalled(ctx, "lynis", "lynis", logf)
 	if err != nil {
 		return engineResult{}, err

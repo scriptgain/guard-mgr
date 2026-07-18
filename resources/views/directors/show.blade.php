@@ -8,21 +8,21 @@
         :subtitle="collect([$director->location?->name, $director->hostname])->filter()->implode(' · ') ?: 'Director node'">
         <x-slot:actions>
             <x-button variant="secondary" icon="edit" href="{{ route('directors.edit', $director) }}">Edit</x-button>
-            <x-button icon="plus" href="{{ route('hosts.create', $director) }}">Add Host</x-button>
+            <x-button icon="plus" href="{{ route('hosts.create', $director) }}">Add Server</x-button>
         </x-slot:actions>
     </x-page-header>
 
     <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <x-stat label="Location" value="{{ $director->location?->name ?? 'Unassigned' }}" icon="folder" />
         <x-stat label="Address" value="{{ $director->hostname ?: '—' }}" icon="server" />
-        <x-stat label="Hosts" value="{{ $director->hosts->count() }}" icon="database" />
+        <x-stat label="Servers" value="{{ $director->hosts->count() }}" icon="database" />
         <x-stat label="Status" value="{{ ucfirst($director->status) }}" icon="cloud" />
     </div>
 
-    <x-card title="Hosts" subtitle="Machines protected under this Director" :flush="$director->hosts->isNotEmpty()">
+    <x-card title="Servers" subtitle="Servers scanned under this Director" :flush="$director->hosts->isNotEmpty()">
         @if ($director->hosts->isEmpty())
-            <x-empty-state icon="server" title="No Hosts Yet" description="Add a host via agent, SSH, SFTP, FTP, rsync, or S3.">
-                <x-slot:action><x-button icon="plus" href="{{ route('hosts.create', $director) }}">Add Host</x-button></x-slot:action>
+            <x-empty-state icon="server" title="No Servers Yet" description="Add a server via agent, SSH, SFTP, FTP, rsync, or S3.">
+                <x-slot:action><x-button icon="plus" href="{{ route('hosts.create', $director) }}">Add Server</x-button></x-slot:action>
             </x-empty-state>
         @else
             <x-table flush>
@@ -42,7 +42,7 @@
                                     <x-icon-button :href="route('hosts.show', $h)" icon="eye" title="Open" />
                                     <x-icon-button :href="route('hosts.edit', $h)" icon="edit" title="Edit" />
                                     <x-delete-button :name="'del-host-' . $h->id" :action="route('hosts.destroy', $h)"
-                                        title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                                        title="Remove Server?" message="This removes the server, its scan jobs, and their scan history from this Director." />
                                 </div>
                             </td>
                         </tr>

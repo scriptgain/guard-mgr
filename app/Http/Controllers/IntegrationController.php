@@ -21,6 +21,7 @@ class IntegrationController extends Controller
             'integrations_telegram_token' => ['nullable', 'string', 'max:255'],
             'integrations_telegram_chat_id' => ['nullable', 'string', 'max:64'],
             'integrations_webhook_url' => ['nullable', 'url', 'max:500'],
+            'wpscan_api_token' => ['nullable', 'string', 'max:255'],
         ]);
 
         foreach (IntegrationNotifier::CHANNELS as $ch) {
@@ -32,6 +33,11 @@ class IntegrationController extends Controller
         // Telegram token is a secret: keep the stored value when left blank.
         if (! empty($data['integrations_telegram_token'])) {
             Setting::put('integrations_telegram_token', $data['integrations_telegram_token']);
+        }
+        // WPScan token is a secret: keep the stored value when blank, allow an
+        // explicit clear by submitting whitespace.
+        if (array_key_exists('wpscan_api_token', $data) && $data['wpscan_api_token'] !== null && $data['wpscan_api_token'] !== '') {
+            Setting::put('wpscan_api_token', trim($data['wpscan_api_token']));
         }
 
         return redirect()->route('settings.integrations.edit')->with('status', 'Integrations saved.');

@@ -1,9 +1,10 @@
 // Command guard-agent is the GuardMGR scan agent.
 //
 // It runs on any Linux host, polls the master control plane over outbound HTTPS
-// for due scan jobs, runs the selected security engines (Lynis, rkhunter, ufw)
-// locally as root, and reports a hardening score plus findings back. No inbound
-// ports are required on the scanned host.
+// for due scan jobs, runs the selected security engines (Lynis, rkhunter,
+// chkrootkit, ClamAV, maldet, ufw, fail2ban, and the WordPress scanner) locally
+// as root, and reports a hardening score plus findings back. No inbound ports
+// are required on the scanned host.
 //
 // Subcommands:
 //
@@ -207,7 +208,7 @@ func runScan(ctx context.Context, client *api.Client, job *api.Job) {
 	if len(engines) == 0 {
 		engines = []string{"lynis"}
 	}
-	report := scan.Run(ctx, engines, func(f string, a ...any) {
+	report := scan.Run(ctx, engines, scan.Options{WPScanToken: job.WPScanToken}, func(f string, a ...any) {
 		fmt.Printf("run %s: "+f+"\n", append([]any{job.RunID}, a...)...)
 	})
 	if report.Score != nil {

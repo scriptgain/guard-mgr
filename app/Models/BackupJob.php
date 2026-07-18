@@ -37,7 +37,7 @@ class BackupJob extends Model
     /** Scanners this job runs, always a clean list (defaults to Lynis). */
     public function engineList(): array
     {
-        $allowed = ['lynis', 'rkhunter', 'ufw'];
+        $allowed = array_keys(\App\Http\Controllers\JobController::ENGINES);
         $engines = array_values(array_intersect($allowed, (array) ($this->engines ?? [])));
 
         return $engines ?: ['lynis'];

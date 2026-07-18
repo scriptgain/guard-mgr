@@ -25,13 +25,16 @@ type Job struct {
 	Type      string   `json:"type"`      // always "scan"
 	Action    string   `json:"action"`    // scan (default) | apply_template | run_updates | ...
 	Connector string   `json:"connector"` // agent
-	Engines   []string `json:"engines"`   // lynis | rkhunter | ufw
+	Engines   []string `json:"engines"`   // lynis|rkhunter|chkrootkit|clamav|maldet|ufw|fail2ban|wordpress
+	// WPScanToken, when set, enables the WPScan vulnerability API in the
+	// wordpress engine. Optional — empty falls back to update heuristics.
+	WPScanToken string `json:"wpscan_token,omitempty"`
 }
 
 // Finding is one security finding produced by a scan engine.
 type Finding struct {
 	Severity    string `json:"severity"` // critical|high|medium|low|info
-	Engine      string `json:"engine"`   // lynis|rkhunter|ufw
+	Engine      string `json:"engine"`   // lynis|rkhunter|chkrootkit|clamav|maldet|ufw|fail2ban|wordpress
 	Code        string `json:"code,omitempty"`
 	Title       string `json:"title"`
 	Detail      string `json:"detail,omitempty"`

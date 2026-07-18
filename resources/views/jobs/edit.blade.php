@@ -22,16 +22,21 @@
 
             <div class="mt-6 border-t border-slate-100 pt-5">
                 <p class="text-sm font-medium text-slate-700">Scan Engines</p>
-                <p class="text-xs text-slate-500 mb-3">Choose which security scanners run on each scan.</p>
+                <p class="text-xs text-slate-500 mb-4">Choose which security scanners run on each scan, grouped by what they check.</p>
                 @error('engines')<p class="text-xs text-rose-600 mb-2">{{ $message }}</p>@enderror
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    @foreach ($engines as $key => [$label, $desc])
-                        <label class="flex flex-col gap-2 rounded-lg border border-slate-200 p-4 hover:border-brand-300 transition">
-                            <x-check-switch name="engines[]" :value="$key" :checked="in_array($key, $selected)">{{ $label }}</x-check-switch>
-                            <span class="text-xs text-slate-500">{{ $desc }}</span>
-                        </label>
-                    @endforeach
-                </div>
+                @foreach ($engines as $category => $group)
+                    <div class="mb-5">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">{{ $category }}</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            @foreach ($group as $key => [$label, $desc])
+                                <label class="flex flex-col gap-2 rounded-lg border border-slate-200 p-4 hover:border-brand-300 transition">
+                                    <x-check-switch name="engines[]" :value="$key" :checked="in_array($key, $selected)">{{ $label }}</x-check-switch>
+                                    <span class="text-xs text-slate-500">{{ $desc }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
             </div>
 
             <div class="mt-6 border-t border-slate-100 pt-5" x-data="{ cron: '{{ old('schedule_cron', $job->schedule_cron) }}' }">

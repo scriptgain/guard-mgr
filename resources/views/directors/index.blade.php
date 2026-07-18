@@ -1,6 +1,6 @@
 @php $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn']; @endphp
 <x-layouts.app title="Directors">
-    <x-page-header title="Directors" icon="cloud" subtitle="Nodes that run backups. Each Director belongs to a Location and holds many Hosts.">
+    <x-page-header title="Directors" icon="cloud" subtitle="Scan nodes. Each Director belongs to a Location and runs or queues scans for its Servers.">
         <x-slot:actions>
             <x-button variant="secondary" icon="folder" href="{{ route('locations.index') }}">Locations</x-button>
             <x-button icon="plus" href="{{ route('directors.create') }}">New Director</x-button>
@@ -9,14 +9,14 @@
 
     @if ($directors->isEmpty())
         <x-card>
-            <x-empty-state icon="cloud" title="No Directors Yet" description="Create a Director node, then add hosts within it.">
+            <x-empty-state icon="cloud" title="No Directors Yet" description="Create a Director node, then add servers within it.">
                 <x-slot:action><x-button icon="plus" href="{{ route('directors.create') }}">New Director</x-button></x-slot:action>
             </x-empty-state>
         </x-card>
     @else
         <x-table>
             <thead>
-                <tr><th>Name</th><th>Location</th><th>Address</th><th>Hosts</th><th>Status</th><th class="text-right">Actions</th></tr>
+                <tr><th>Name</th><th>Location</th><th>Address</th><th>Servers</th><th>Status</th><th class="text-right">Actions</th></tr>
             </thead>
             <tbody>
                 @foreach ($directors as $d)
@@ -35,7 +35,7 @@
                                 <x-icon-button :href="route('directors.edit', $d)" icon="edit" title="Edit" />
                                 @unless ($d->is_local)
                                     <x-delete-button :name="'del-dir-' . $d->id" :action="route('directors.destroy', $d)"
-                                        title="Delete Director?" message="This removes the Director and all its hosts and jobs." />
+                                        title="Delete Director?" message="This removes the Director and all its servers and scan jobs." />
                                 @endunless
                             </div>
                         </td>

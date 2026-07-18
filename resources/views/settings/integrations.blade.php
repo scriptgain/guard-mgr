@@ -62,6 +62,21 @@
             </div>
         </x-card>
 
+        <x-card title="WordPress (WPScan)" subtitle="Optional API token for known-vulnerability lookups during WordPress scans.">
+            <div class="space-y-5">
+                <p class="text-sm text-slate-600">
+                    The WordPress scan engine flags vulnerable core, plugins, and themes. With a
+                    <a href="https://wpscan.com/api/" target="_blank" rel="noopener" class="text-brand-700 underline">WPScan API token</a>
+                    it matches installs against the WPScan vulnerability database for CVE-level detail.
+                    Without one it falls back to outdated-version heuristics — the token is optional.
+                </p>
+                <x-field label="WPScan API Token" for="wpscan_api_token" hint="Leave blank to keep the stored value. Clear it by saving a single space.">
+                    <x-input id="wpscan_api_token" name="wpscan_api_token" type="password" autocomplete="new-password" data-lpignore="true"
+                        placeholder="{{ \App\Models\Setting::get('wpscan_api_token') ? '•••••••• (stored)' : 'Paste your WPScan API token' }}" />
+                </x-field>
+            </div>
+        </x-card>
+
         <div class="flex items-center justify-end gap-2">
             <x-button variant="secondary" href="{{ route('settings.index') }}">Cancel</x-button>
             <x-button type="submit" icon="check">Save</x-button>

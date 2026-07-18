@@ -85,6 +85,10 @@ class AgentController extends Controller
             'connector' => $job->connector,
             // The security scanners this job asked the agent to run.
             'engines' => $job->engineList(),
+            // Optional WPScan API token — enables CVE-level WordPress vuln
+            // lookups in the agent's wordpress engine. Empty falls back to
+            // update-available heuristics.
+            'wpscan_token' => (string) ($s['wpscan_api_token'] ?? ''),
         ]]);
     }
 
@@ -121,7 +125,7 @@ class AgentController extends Controller
             'findings' => ['nullable', 'array'],
             'findings.*.severity' => ['nullable', 'string', 'max:20'],
             'findings.*.engine' => ['nullable', 'string', 'max:40'],
-            'findings.*.code' => ['nullable', 'string', 'max:120'],
+            'findings.*.code' => ['nullable', 'string', 'max:255'],
             'findings.*.title' => ['nullable', 'string', 'max:255'],
             'findings.*.detail' => ['nullable', 'string'],
             'findings.*.remediation' => ['nullable', 'string'],
@@ -144,7 +148,7 @@ class AgentController extends Controller
                 $run->findings()->create([
                     'severity' => $sev,
                     'engine' => $f['engine'] ?? null,
-                    'code' => $f['code'] ?? null,
+                    'code' => isset($f['code']) ? \Illuminate\Support\Str::limit($f['code'], 250, '') : null,
                     'title' => \Illuminate\Support\Str::limit($f['title'] ?? 'Finding', 250, ''),
                     'detail' => $f['detail'] ?? null,
                     'remediation' => $f['remediation'] ?? null,
