@@ -1,0 +1,72 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views';
+
+/*
+  Security design system — "Steel & Amber".
+  Cool slate/steel neutrals + a signal-amber accent. Amber deliberately leaves
+  red/rose free for severity + failure states. Tokens are defined once here so
+  the whole product can be rebranded by editing the --color-brand-* scale.
+*/
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Brand accent (amber). Change these to rebrand. */
+    --color-brand-50: #fffbeb;
+    --color-brand-100: #fef3c7;
+    --color-brand-200: #fde68a;
+    --color-brand-300: #fcd34d;
+    --color-brand-400: #fbbf24;
+    --color-brand-500: #f59e0b;
+    --color-brand-600: #d97706;
+    --color-brand-700: #b45309;
+    --color-brand-800: #92400e;
+    --color-brand-900: #78350f;
+    --color-brand-950: #451a03;
+
+    /* Dark chrome (top utility bar + main navbar) — deep steel navy. */
+    --color-chrome: #0b1220;
+    --color-chrome-soft: #0e1626;
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+    body {
+        @apply bg-slate-50 text-slate-800 antialiased;
+    }
+    /* Kill the black focus flash on click; keep keyboard focus rings. */
+    :focus:not(:focus-visible) {
+        outline: none;
+    }
+    :focus-visible {
+        @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-white;
+    }
+    /* Table numerics line up. */
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+    /* Hide Alpine-controlled elements until Alpine initializes. */
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    /* A thin, reusable divider between page sections (house style). */
+    .section-divider {
+        @apply border-t border-slate-200;
+    }
+    /* Horizontal nav can scroll without showing a scrollbar. */
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
