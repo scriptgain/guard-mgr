@@ -182,6 +182,20 @@
                     <p class="mt-3 text-center text-xs text-slate-400">
                         No scored scans yet. Run a scan to compute a hardening score.
                     </p>
+                @else
+                    <p class="mt-1 text-center text-xs text-slate-400">Fleet average across {{ $serverScores->count() }} scored {{ Str::plural('server', $serverScores->count()) }}</p>
+                    <ul class="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                        @foreach ($serverScores as $s)
+                            @php [$sc] = $scoreBand($s->latest_score); @endphp
+                            <li class="flex items-center gap-3 text-sm">
+                                <a href="{{ route('hosts.show', $s) }}" class="min-w-0 flex-1 truncate font-medium text-slate-700 hover:text-brand-700">{{ $s->name }}</a>
+                                <div class="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-slate-100">
+                                    <span class="block h-full rounded-full" style="width:{{ max(2, min(100, $s->latest_score)) }}%;background-color:{{ $sc }}"></span>
+                                </div>
+                                <span class="w-8 shrink-0 text-right font-semibold tabular" style="color:{{ $sc }}">{{ $s->latest_score }}</span>
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
             </div>
         </x-card>

@@ -23,7 +23,7 @@ class RunController extends Controller
 
     public function show(Run $run)
     {
-        $run->load('job.host.director', 'job.repository');
+        $run->load('job.host.director', 'findings');
         $this->guard($run);
 
         return view('runs.show', compact('run'));

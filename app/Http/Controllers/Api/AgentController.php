@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Finding;
 use App\Models\Host;
-use App\Models\Restore;
 use App\Models\Run;
 use App\Models\Setting;
 use Illuminate\Http\Request;
@@ -77,18 +77,14 @@ class AgentController extends Controller
         return response()->json(['job' => [
             'run_id' => (string) $run->id,
             'job_id' => (string) $job->id,
-            'type' => $job->type,
+            'type' => 'scan',
+            // The action discriminator the agent dispatches on. 'scan' today;
+            // apply_template / run_updates / firewall_apply / quarantine are
+            // reserved for later phases.
+            'action' => $job->actionType(),
             'connector' => $job->connector,
-            // Prune per the job, unless the global override forces it fleet-wide.
-            'prune_after_backup' => (bool) $job->prune_after_backup || ($s['prune_all_jobs'] ?? '0') === '1',
-            // Global post-backup policies from General settings.
-            'verify_after_backup' => ($s['verify_after_backup'] ?? '0') === '1',
-            // Maintenance is gated by the configured window (Settings → Maintenance).
-            'auto_maintenance' => \App\Http\Controllers\MaintenanceController::allowedNow($s),
-            'repository' => $this->repoPayload($job->repository),
-            'source' => $this->sourcePayload($job),
-            'transport' => $this->transportPayload($job->host),
-            'retention' => $this->retentionPayload($job->retentionPolicy),
+            // The security scanners this job asked the agent to run.
+            'engines' => $job->engineList(),
         ]]);
     }
 
@@ -109,43 +105,84 @@ class AgentController extends Controller
         );
     }
 
-    /** Record progress or the final result of a run. */
+    /**
+     * Record progress or the final result of a scan run. The agent posts a
+     * hardening `score` (0-100) plus a list of security `findings`; on a final
+     * status we persist the score, replace the run's findings, roll the run
+     * status up from finding severity, and update the server's latest score.
+     */
     public function report(Request $request, Run $run)
     {
         $this->authorizeRunForAgent($request, $run);
         $data = $request->validate([
             'status' => ['required', 'in:running,success,warn,failed'],
-            'bytes_in' => ['nullable', 'integer'],
-            'bytes_uploaded' => ['nullable', 'integer'],
-            'files' => ['nullable', 'integer'],
-            'snapshot_id' => ['nullable', 'string'],
+            'score' => ['nullable', 'integer', 'between:0,100'],
             'log' => ['nullable', 'string'],
+            'findings' => ['nullable', 'array'],
+            'findings.*.severity' => ['nullable', 'string', 'max:20'],
+            'findings.*.engine' => ['nullable', 'string', 'max:40'],
+            'findings.*.code' => ['nullable', 'string', 'max:120'],
+            'findings.*.title' => ['nullable', 'string', 'max:255'],
+            'findings.*.detail' => ['nullable', 'string'],
+            'findings.*.remediation' => ['nullable', 'string'],
         ]);
 
-        $update = ['status' => $data['status']];
-        foreach (['bytes_in', 'bytes_uploaded', 'files', 'snapshot_id', 'log'] as $k) {
-            if (array_key_exists($k, $data) && $data[$k] !== null) {
-                $update[$k] = $data[$k];
+        $status = $data['status'];
+        $final = in_array($status, ['success', 'warn', 'failed'], true);
+
+        // On a final report, materialize the findings and derive the run status
+        // from severity (any high/critical => warn) unless the agent reported a
+        // hard failure. A no-op/failed scan is handled fail-soft.
+        if ($final && $status !== 'failed') {
+            $run->findings()->delete();
+            $high = 0;
+            foreach ($data['findings'] ?? [] as $f) {
+                $sev = in_array($f['severity'] ?? '', Finding::SEVERITIES, true) ? $f['severity'] : 'info';
+                if (in_array($sev, ['critical', 'high'], true)) {
+                    $high++;
+                }
+                $run->findings()->create([
+                    'severity' => $sev,
+                    'engine' => $f['engine'] ?? null,
+                    'code' => $f['code'] ?? null,
+                    'title' => \Illuminate\Support\Str::limit($f['title'] ?? 'Finding', 250, ''),
+                    'detail' => $f['detail'] ?? null,
+                    'remediation' => $f['remediation'] ?? null,
+                ]);
             }
+            // Any high/critical finding downgrades a "success" report to "warn".
+            $status = $high > 0 ? 'warn' : $status;
         }
-        if (in_array($data['status'], ['success', 'warn', 'failed'])) {
+
+        $update = ['status' => $status];
+        if (array_key_exists('score', $data) && $data['score'] !== null) {
+            $update['score'] = $data['score'];
+        }
+        if (! empty($data['log'])) {
+            $update['log'] = $data['log'];
+        }
+        if ($final) {
             $update['finished_at'] = now();
         }
-        if ($data['status'] === 'failed') {
-            $update['error'] = $data['log'] ?? 'Run failed.';
+        if ($status === 'failed') {
+            $update['error'] = $data['log'] ?? 'Scan failed.';
         }
         $run->forceFill($update)->save();
 
-        // Agentless hosts don't poll, so a run reaching one is our signal that
-        // it's online (keeps the host from showing a misleading "offline").
-        if (in_array($data['status'], ['running', 'success', 'warn'], true)) {
-            $host = $run->job?->host;
-            if ($host && $host->connection_type !== 'agent') {
+        // Roll the score up onto the scanned server so the Servers list and the
+        // dashboard tile can show a per-host posture without re-querying runs.
+        $host = $run->job?->host;
+        if ($host) {
+            if ($final && $status !== 'failed' && isset($update['score'])) {
+                $host->forceFill(['latest_score' => $update['score'], 'scored_at' => now()])->save();
+            }
+            // An agent reporting in is proof it's online.
+            if (in_array($status, ['running', 'success', 'warn'], true)) {
                 $host->forceFill(['status' => 'online', 'last_seen_at' => now()])->save();
             }
         }
 
-        if ($data['status'] === 'failed') {
+        if ($status === 'failed') {
             $this->notifyFailure($run);
         }
 
@@ -164,86 +201,18 @@ class AgentController extends Controller
         }
         $run->loadMissing('job.host');
         $job = $run->job;
-        $body = "A backup run failed.\n\n"
-            . 'Job: ' . ($job?->name ?? '—') . "\n"
-            . 'Host: ' . ($job?->host?->name ?? '—') . "\n"
+        $body = "A security scan failed.\n\n"
+            . 'Scan Job: ' . ($job?->name ?? '—') . "\n"
+            . 'Server: ' . ($job?->host?->name ?? '—') . "\n"
             . 'When: ' . now()->toDayDateTimeString() . "\n\n"
             . 'Error: ' . ($run->error ?: 'Unknown') . "\n";
         try {
             Mail::raw($body, function ($m) use ($to, $job) {
-                $m->to($to)->subject('[' . config('brand.name') . '] Backup Failed: ' . ($job?->name ?? 'job'));
+                $m->to($to)->subject('[' . config('brand.name') . '] Scan Failed: ' . ($job?->name ?? 'job'));
             });
         } catch (\Throwable $e) {
             // Never let a mail failure break the agent's report.
         }
-    }
-
-    /** Return the next queued restore for this host, or {restore:null}. */
-    public function restorePoll(Request $request)
-    {
-        $host = $request->attributes->get('agent_host');
-        // This agent restores to its own host, and acts as the gateway for
-        // agentless hosts (ftp/sftp/rsync/ssh) in the same Director.
-        $restore = Restore::where('status', 'queued')
-            ->where(function ($w) use ($host) {
-                $w->where('host_id', $host->id)
-                    ->orWhereHas('host', function ($h) use ($host) {
-                        $h->where('director_id', $host->director_id)
-                            ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh']);
-                    });
-            })
-            ->orderBy('id')
-            ->with('run.job.repository', 'host')
-            ->first();
-
-        if (! $restore) {
-            return response()->json(['restore' => null]);
-        }
-
-        $restore->forceFill(['status' => 'running'])->save();
-
-        return response()->json(['restore' => [
-            'id' => (string) $restore->id,
-            'snapshot_id' => $restore->snapshot_id,
-            'target_path' => $restore->target_path,
-            'paths' => $restore->paths ?: [],
-            'repository' => $this->repoPayload($restore->run?->job?->repository),
-        ]]);
-    }
-
-    public function restoreReport(Request $request, Restore $restore)
-    {
-        $host = $request->attributes->get('agent_host');
-        $rh = $restore->loadMissing('host')->host;
-        abort_unless(
-            $rh && ($rh->id === $host->id
-                || ($rh->director_id === $host->director_id
-                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh'], true))),
-            403
-        );
-        $data = $request->validate([
-            'status' => ['required', 'in:running,success,failed'],
-            'log' => ['nullable', 'string'],
-        ]);
-        $restore->forceFill([
-            'status' => $data['status'],
-            'log' => $data['log'] ?? $restore->log,
-        ])->save();
-
-        return response()->noContent();
-    }
-
-    /** Store a snapshot's file listing (uploaded by the agent after a backup). */
-    public function storeIndex(Request $request, Run $run)
-    {
-        $this->authorizeRunForAgent($request, $run);
-        $files = $request->input('files', []);
-        if (! is_array($files)) {
-            $files = [];
-        }
-        $run->forceFill(['file_index' => array_slice($files, 0, (int) config('backup.file_index_cap', 5000))])->save();
-
-        return response()->noContent();
     }
 
     public function heartbeat(Request $request)
@@ -320,76 +289,6 @@ class AgentController extends Controller
             'url' => $url,
             'sha256' => $sha256,
             'signature' => $signature,
-        ];
-    }
-
-    private function repoPayload($repo): ?array
-    {
-        if (! $repo) {
-            return null;
-        }
-        $c = $repo->config ?? [];
-
-        return [
-            'backend' => $repo->backend,
-            'filesystem_path' => $c['path'] ?? null,
-            's3_endpoint' => $c['endpoint'] ?? null,
-            'region' => $c['region'] ?? null,
-            'bucket' => $c['bucket'] ?? null,
-            'prefix' => $c['prefix'] ?? null,
-            'access_key_id' => $repo->access_key_id,
-            'secret_access_key' => $repo->secret_access_key,
-            'password' => $repo->password,
-            'compression' => $repo->compression,
-        ];
-    }
-
-    /**
-     * The job's source payload for the agent. For a multi-FTP host the accounts
-     * (with credentials) live on the host, encrypted — inject them decrypted at
-     * poll time so the gateway can fan out to every account in one snapshot.
-     */
-    private function sourcePayload($job)
-    {
-        if ($job->type === 'multiftp') {
-            return ['accounts' => $job->host?->ftpAccountsForAgent() ?? []];
-        }
-
-        // Ingest snapshot: always snapshot the host's *current* drop folder, so
-        // editing the folder on the host takes effect without touching the job.
-        if ($job->connector === 'ingest') {
-            return ['root' => $job->host?->ingest_folder, 'excludes' => []];
-        }
-
-        return $job->source ?: new \stdClass;
-    }
-
-    /** Connection details for an agentless host, sent to the gateway agent. */
-    private function transportPayload($h): ?array
-    {
-        if (! $h || $h->connection_type === 'agent') {
-            return null;
-        }
-
-        return [
-            'type' => $h->connection_type,
-            'host' => $h->ip_address ?: $h->hostname,
-            'port' => $h->port ? (string) $h->port : '',
-            'username' => $h->username,
-            'secret' => $h->secret,          // decrypted by the model cast
-            'private_key' => $h->private_key, // decrypted by the model cast
-        ];
-    }
-
-    private function retentionPayload($p): array
-    {
-        return [
-            'keep_latest' => $p->keep_latest ?? 0,
-            'keep_hourly' => $p->keep_hourly ?? 0,
-            'keep_daily' => $p->keep_daily ?? 0,
-            'keep_weekly' => $p->keep_weekly ?? 0,
-            'keep_monthly' => $p->keep_monthly ?? 0,
-            'keep_annual' => $p->keep_annual ?? 0,
         ];
     }
 }

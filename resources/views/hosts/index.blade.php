@@ -1,6 +1,12 @@
 @php
     $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn', 'stale' => 'warn'];
     $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3 Compatible', 'ingest' => 'Ingest'];
+    $scoreColor = function ($s) {
+        if ($s === null) return 'neutral';
+        if ($s >= 85) return 'success';
+        if ($s >= 60) return 'warn';
+        return 'danger';
+    };
 @endphp
 <x-layouts.app title="Hosts">
     <x-page-header title="Hosts" icon="server" subtitle="Every protected machine across all Directors.">
@@ -31,7 +37,7 @@
     @else
         <x-table>
             <thead>
-                <tr><th>Name</th><th>Director</th>@if (auth()->user()->isAdmin())<th>Owner</th>@endif<th>Connection</th><th>Target</th><th>Status</th><th class="text-right">Actions</th></tr>
+                <tr><th>Name</th><th>Director</th>@if (auth()->user()->isAdmin())<th>Owner</th>@endif<th>Connection</th><th>Target</th><th>Hardening</th><th>Status</th><th class="text-right">Actions</th></tr>
             </thead>
             <tbody>
                 @foreach ($hosts as $h)
@@ -50,6 +56,7 @@
                         @if (auth()->user()->isAdmin())<td class="text-slate-500">{{ $h->owner?->name ?? 'Inherited' }}</td>@endif
                         <td><x-badge color="neutral">{{ $connLabel[$h->connection_type] ?? $h->connection_type }}</x-badge></td>
                         <td class="text-slate-500">{{ $h->ip_address ?: ($h->hostname ?: '—') }}</td>
+                        <td>@if ($h->latest_score !== null)<x-badge :color="$scoreColor($h->latest_score)" data-tip="{{ $h->scored_at ? 'Scored ' . $h->scored_at->diffForHumans() : '' }}">{{ $h->latest_score }}/100</x-badge>@else<span class="text-slate-400 text-sm">—</span>@endif</td>
                         <td><x-badge :color="$statusColor[$h->effective_status] ?? 'neutral'" dot>{{ ucfirst($h->effective_status) }}</x-badge></td>
                         <td class="text-right">
                             <div class="inline-flex items-center gap-2">

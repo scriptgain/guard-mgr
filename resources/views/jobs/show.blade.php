@@ -1,15 +1,21 @@
 @php
     $badge = ['success' => 'success', 'running' => 'info', 'queued' => 'neutral', 'warn' => 'warn', 'failed' => 'danger'];
-    $fmt = function ($b) { if ($b === null) return '—'; $u=['B','KB','MB','GB','TB']; $i=0; while($b>=1024&&$i<4){$b/=1024;$i++;} return round($b,$i?1:0).' '.$u[$i]; };
-    $p = $job->retentionPolicy;
+    $label = ['success' => 'Passed', 'running' => 'Running', 'queued' => 'Queued', 'warn' => 'Warnings', 'failed' => 'Failed'];
+    $scoreColor = function ($s) {
+        if ($s === null) return 'neutral';
+        if ($s >= 85) return 'success';
+        if ($s >= 60) return 'warn';
+        return 'danger';
+    };
+    $engineLabels = ['lynis' => 'Lynis', 'rkhunter' => 'rkhunter', 'ufw' => 'Firewall (ufw)'];
 @endphp
 <x-layouts.app :title="$job->name">
-    <x-page-header :title="$job->name" icon="clock"
-        :subtitle="($job->host?->name ?? '') . ' · ' . ucfirst($job->type)">
+    <x-page-header :title="$job->name" icon="shield"
+        :subtitle="($job->host?->name ?? '') . ' · Scan Job'">
         <x-slot:actions>
             <x-button variant="secondary" icon="edit" href="{{ route('jobs.edit', $job) }}">Edit</x-button>
             <x-confirm-action name="run-job-{{ $job->id }}" :action="route('jobs.run', $job)"
-                title="Run This Backup Now?" message="Queues a run for this job. It executes on the next agent poll." confirm="Run Now" confirmIcon="play">
+                title="Run This Scan Now?" message="Queues a scan for this job. It executes on the next agent poll." confirm="Run Now" confirmIcon="play">
                 <x-button icon="play">Run Now</x-button>
             </x-confirm-action>
         </x-slot:actions>
@@ -18,16 +24,15 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
             @php $recentRuns = $job->runs->sortByDesc('created_at')->take(15); @endphp
-            <x-card title="Recent Runs" :flush="$job->runs->isNotEmpty()">
+            <x-card title="Recent Scans" :flush="$job->runs->isNotEmpty()">
                 @if ($job->runs->isEmpty())
-                    <x-empty-state icon="archive" title="No Runs Yet" description="Trigger a run with the button above." />
+                    <x-empty-state icon="shield" title="No Scans Yet" description="Trigger a scan with the button above." />
                 @else
                     <div
                         x-data="{
                             selected: [],
                             confirming: false,
                             allIds: [{{ $recentRuns->pluck('id')->implode(',') }}],
-                            toggleAll(e) { this.selected = e.target.checked ? [...this.allIds] : []; this.confirming = false; },
                             submitBulk() {
                                 const f = this.$refs.bulkForm;
                                 f.querySelectorAll('input.js-dyn').forEach(n => n.remove());
@@ -39,10 +44,8 @@
                                 f.submit();
                             }
                         }">
-                        {{-- Hidden form the bulk delete posts through. --}}
                         <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
 
-                        {{-- Bulk actions bar: appears once at least one run is selected. --}}
                         <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
                             <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
                             <div class="flex items-center gap-2">
@@ -51,7 +54,7 @@
                                 </template>
                                 <template x-if="confirming">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <span class="text-sm text-brand-800">Delete <span x-text="selected.length"></span> run(s)?</span>
+                                        <span class="text-sm text-brand-800">Delete <span x-text="selected.length"></span> scan(s)?</span>
                                         <x-button type="button" variant="secondary" size="sm" x-on:click="confirming = false">Cancel</x-button>
                                         <x-button type="button" variant="danger" size="sm" icon="trash" x-on:click="submitBulk()">Confirm Delete</x-button>
                                     </div>
@@ -67,12 +70,12 @@
                                         @click="selected = (allIds.length > 0 && selected.length === allIds.length) ? [] : [...allIds]"
                                         :class="(allIds.length > 0 && selected.length === allIds.length) ? 'bg-brand-600' : 'bg-slate-300'"
                                         class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors align-middle disabled:opacity-40"
-                                        :disabled="allIds.length === 0" aria-label="Select all runs">
+                                        :disabled="allIds.length === 0" aria-label="Select all scans">
                                         <span :class="(allIds.length > 0 && selected.length === allIds.length) ? 'translate-x-6' : 'translate-x-1'"
                                             class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"></span>
                                     </button>
                                 </th>
-                                <th>Status</th><th>Snapshot</th><th>Size</th><th>When</th><th class="text-right">Actions</th>
+                                <th>Status</th><th>Score</th><th>Findings</th><th>When</th><th class="text-right">Actions</th>
                             </tr></thead>
                             <tbody>
                                 @foreach ($recentRuns as $r)
@@ -83,20 +86,20 @@
                                                 @click="selected.includes({{ $r->id }}) ? selected.splice(selected.indexOf({{ $r->id }}), 1) : selected.push({{ $r->id }}); confirming = false"
                                                 :class="selected.includes({{ $r->id }}) ? 'bg-brand-600' : 'bg-slate-300'"
                                                 class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors align-middle"
-                                                aria-label="Select run">
+                                                aria-label="Select scan">
                                                 <span :class="selected.includes({{ $r->id }}) ? 'translate-x-6' : 'translate-x-1'"
                                                     class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"></span>
                                             </button>
                                         </td>
-                                        <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ ucfirst($r->status) }}</x-badge></td>
-                                        <td class="font-mono text-xs text-slate-500">{{ $r->snapshot_id ? Str::limit($r->snapshot_id, 16) : '—' }}</td>
-                                        <td>{{ $fmt($r->bytes_in) }}</td>
+                                        <td><x-badge :color="$badge[$r->status] ?? 'neutral'" dot>{{ $label[$r->status] ?? ucfirst($r->status) }}</x-badge></td>
+                                        <td>@if ($r->score !== null)<x-badge :color="$scoreColor($r->score)">{{ $r->score }}/100</x-badge>@else<span class="text-slate-400 text-sm">—</span>@endif</td>
+                                        <td class="tabular text-slate-600">{{ $r->findings()->count() ?: '—' }}</td>
                                         <td class="text-slate-500">{{ $r->created_at?->diffForHumans() }}</td>
                                         <td class="text-right" onclick="event.stopPropagation()">
                                             <div class="inline-flex items-center gap-2">
-                                                <x-icon-button :href="route('runs.show', $r)" icon="eye" title="View Log" />
+                                                <x-icon-button :href="route('runs.show', $r)" icon="eye" title="View Report" />
                                                 <x-delete-button :name="'del-run-' . $r->id" :action="route('runs.destroy', $r)"
-                                                    title="Delete Run?" message="Removes this run record and its log. The snapshot in the repository is not deleted." confirm="Delete" label="Delete Run" />
+                                                    title="Delete Scan?" message="Removes this scan record and its findings." confirm="Delete" label="Delete Scan" />
                                             </div>
                                         </td>
                                     </tr>
@@ -111,26 +114,23 @@
         <div class="space-y-6">
             <x-card title="Configuration">
                 <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Host</dt><dd class="font-medium text-slate-900">{{ $job->host?->name ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Repository</dt><dd class="font-medium text-slate-900">{{ $job->repository?->name ?? '—' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Server</dt><dd class="font-medium text-slate-900">{{ $job->host?->name ?? '—' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Connector</dt><dd class="font-medium text-slate-900">{{ ucfirst($job->connector) }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Schedule</dt><dd class="font-medium text-slate-900 tabular">{{ $job->schedule_cron ?: 'Manual' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-slate-500">Enabled</dt><dd><x-badge :color="$job->enabled ? 'success' : 'neutral'">{{ $job->enabled ? 'On' : 'Off' }}</x-badge></dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Latest Score</dt><dd>@if ($job->host?->latest_score !== null)<x-badge :color="$scoreColor($job->host->latest_score)">{{ $job->host->latest_score }}/100</x-badge>@else<span class="text-slate-400">—</span>@endif</dd></div>
                 </dl>
             </x-card>
 
-            <x-card title="Retention">
-                @if ($p)
-                    <dl class="space-y-2 text-sm">
-                        <div class="flex justify-between"><dt class="text-slate-500">Latest</dt><dd class="tabular font-medium">{{ $p->keep_latest }}</dd></div>
-                        <div class="flex justify-between"><dt class="text-slate-500">Daily</dt><dd class="tabular font-medium">{{ $p->keep_daily }}</dd></div>
-                        <div class="flex justify-between"><dt class="text-slate-500">Weekly</dt><dd class="tabular font-medium">{{ $p->keep_weekly }}</dd></div>
-                        <div class="flex justify-between"><dt class="text-slate-500">Monthly</dt><dd class="tabular font-medium">{{ $p->keep_monthly }}</dd></div>
-                    </dl>
-                    <p class="mt-4 text-xs text-slate-500">{{ $job->prune_after_backup ? 'Prunes after each backup.' : 'Prune after backup disabled.' }}{{ $job->prune_schedule_cron ? ' Separate prune: ' . $job->prune_schedule_cron : '' }}</p>
-                @else
-                    <p class="text-sm text-slate-500">No retention policy.</p>
-                @endif
+            <x-card title="Scan Engines">
+                <ul class="space-y-2 text-sm">
+                    @foreach ($job->engineList() as $e)
+                        <li class="flex items-center gap-2">
+                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 ring-1 ring-brand-100"><x-icon name="shield" class="h-3.5 w-3.5" /></span>
+                            <span class="font-medium text-slate-800">{{ $engineLabels[$e] ?? ucfirst($e) }}</span>
+                        </li>
+                    @endforeach
+                </ul>
             </x-card>
         </div>
     </div>

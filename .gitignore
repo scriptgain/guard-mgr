@@ -38,5 +38,5 @@ Thumbs.db
 *.bak
 *.bak-*
 
-# Go backup agent now lives in the private scriptgain/backup-agent repo.
-/agent/
+# The GuardMGR scan agent (Go source) lives in this repo under /agent; only its
+# built binaries (/agent/bin, ignored above) stay out.

@@ -52,9 +52,6 @@ Route::prefix('agent/v1')->name('agent.')->group(function () {
     Route::middleware('agent.auth')->group(function () {
         Route::get('poll', [AgentController::class, 'poll']);
         Route::post('runs/{run}/report', [AgentController::class, 'report']);
-        Route::post('runs/{run}/index', [AgentController::class, 'storeIndex']);
-        Route::get('restores/poll', [AgentController::class, 'restorePoll']);
-        Route::post('restores/{restore}/report', [AgentController::class, 'restoreReport']);
         Route::post('heartbeat', [AgentController::class, 'heartbeat']);
     });
 });

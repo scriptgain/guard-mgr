@@ -13,7 +13,7 @@ class BackupJob extends Model
 
     protected $fillable = [
         'host_id', 'repository_id', 'retention_policy_id', 'name', 'type',
-        'connector', 'source', 'schedule_cron', 'enabled', 'ad_hoc',
+        'action', 'engines', 'connector', 'source', 'schedule_cron', 'enabled', 'ad_hoc',
         'prune_after_backup', 'prune_schedule_cron', 'pre_hook', 'post_hook',
     ];
 
@@ -21,10 +21,26 @@ class BackupJob extends Model
     {
         return [
             'source' => 'array',
+            'engines' => 'array',
             'enabled' => 'boolean',
             'ad_hoc' => 'boolean',
             'prune_after_backup' => 'boolean',
         ];
+    }
+
+    /** What the agent should do for this job; 'scan' is the only live action. */
+    public function actionType(): string
+    {
+        return $this->action ?: 'scan';
+    }
+
+    /** Scanners this job runs, always a clean list (defaults to Lynis). */
+    public function engineList(): array
+    {
+        $allowed = ['lynis', 'rkhunter', 'ufw'];
+        $engines = array_values(array_intersect($allowed, (array) ($this->engines ?? [])));
+
+        return $engines ?: ['lynis'];
     }
 
     public function host(): BelongsTo

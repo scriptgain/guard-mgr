@@ -31,13 +31,14 @@ class DashboardController extends Controller
             ->where(fn ($q) => $q->whereNull('last_seen_at')->orWhere('last_seen_at', '<', now()->subMinutes(10)))
             ->count();
 
-        // Hardening score — Phase 1 stub. Once the scan engine (Phase 2) writes a
-        // `score` on each Run, this averages the recent scored scans. Until then
-        // it stays null and the tile shows a "pending first scan" state.
-        $scored = Run::whereNotNull('score')
-            ->whereHas('job.host.director', $visible)
-            ->latest()->limit(200)->pluck('score');
-        $hardeningScore = $scored->isNotEmpty() ? (int) round($scored->avg()) : null;
+        // Hardening score — fleet average of each server's latest score, plus the
+        // per-server breakdown the tile lists. Null until the first scan reports.
+        $scoredHosts = Host::whereHas('director', $visible)
+            ->whereNotNull('latest_score')
+            ->orderBy('latest_score')
+            ->get(['id', 'name', 'latest_score', 'scored_at']);
+        $hardeningScore = $scoredHosts->isNotEmpty() ? (int) round($scoredHosts->avg('latest_score')) : null;
+        $serverScores = $scoredHosts->take(6);
 
         $attention = Run::whereIn('status', ['failed', 'warn'])
             ->whereHas('job.host.director', $visible)
@@ -74,7 +75,7 @@ class DashboardController extends Controller
 
         return view('dashboard', compact(
             'stats', 'runs', 'failed24h', 'staleHosts', 'hardeningScore', 'attention',
-            'activity', 'windowTotal', 'successRate',
+            'activity', 'windowTotal', 'successRate', 'serverScores',
         ));
     }
 }

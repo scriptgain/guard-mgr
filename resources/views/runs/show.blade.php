@@ -1,50 +1,137 @@
 @php
-    $badge = ['success' => 'success', 'running' => 'info', 'queued' => 'neutral', 'warn' => 'warn', 'failed' => 'danger'];
-    $fmt = function ($b) { if ($b === null) return '—'; $u=['B','KB','MB','GB','TB']; $i=0; while($b>=1024&&$i<4){$b/=1024;$i++;} return round($b,$i?1:0).' '.$u[$i]; };
+    $statusBadge = ['success' => 'success', 'running' => 'info', 'queued' => 'neutral', 'warn' => 'warn', 'failed' => 'danger'];
+    $statusLabel = ['success' => 'Passed', 'running' => 'Running', 'queued' => 'Queued', 'warn' => 'Warnings', 'failed' => 'Failed'];
     $dur = ($run->started_at && $run->finished_at) ? $run->started_at->diffForHumans($run->finished_at, true) : '—';
+
+    // Score band: color + verbal label for the big number.
+    $band = function ($s) {
+        if ($s === null) return ['#94a3b8', 'Pending'];
+        if ($s >= 85) return ['#10b981', 'Strong'];
+        if ($s >= 60) return ['#f59e0b', 'Needs Work'];
+        return ['#f43f5e', 'At Risk'];
+    };
+    [$scoreColor, $scoreLabel] = $band($run->score);
+    $gaugeLen = 276.46;
+    $gaugeDash = round(min(100, max(0, (int) ($run->score ?? 0))) / 100 * $gaugeLen, 1);
+
+    // Findings grouped by severity, in display order.
+    $order = ['critical', 'high', 'medium', 'low', 'info'];
+    $sevMeta = [
+        'critical' => ['danger', 'Critical', '#dc2626'],
+        'high' => ['danger', 'High', '#f43f5e'],
+        'medium' => ['warn', 'Medium', '#f59e0b'],
+        'low' => ['info', 'Low', '#3b82f6'],
+        'info' => ['neutral', 'Info', '#64748b'],
+    ];
+    $grouped = $run->findings->groupBy('severity');
+    $counts = collect($order)->mapWithKeys(fn ($s) => [$s => ($grouped[$s] ?? collect())->count()]);
+    $engineLabel = ['lynis' => 'Lynis', 'rkhunter' => 'rkhunter', 'ufw' => 'ufw'];
 @endphp
-<x-layouts.app :title="'Run #' . $run->id">
-    <x-page-header :title="'Run #' . $run->id" icon="clock"
-        :subtitle="($run->job?->name ?? 'Job') . ' · ' . ($run->job?->host?->name ?? '')">
+<x-layouts.app :title="'Scan #' . $run->id">
+    <x-page-header :title="'Scan Report #' . $run->id" icon="shield"
+        :subtitle="($run->job?->host?->name ?? 'Server') . ' · ' . ($run->job?->name ?? 'Scan Job')">
         <x-slot:actions>
-            @if ($run->job)<x-button variant="secondary" icon="clock" href="{{ route('jobs.show', $run->job) }}">Job</x-button>@endif
-            @if ($run->snapshot_id)<x-button icon="folder" href="{{ route('snapshots.browse', $run) }}">Browse Files</x-button>@endif
+            @if ($run->job)<x-button variant="secondary" icon="clock" href="{{ route('jobs.show', $run->job) }}">Scan Job</x-button>@endif
             <x-delete-button :name="'del-run-' . $run->id" :action="route('runs.destroy', $run)"
-                title="Delete Run?" message="This removes the run record and its log. The snapshot in the repository is not deleted." confirm="Delete" label="Delete Run" />
+                title="Delete Scan?" message="This removes the scan record and its findings." confirm="Delete" label="Delete Scan" />
         </x-slot:actions>
     </x-page-header>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <x-stat label="Status" :value="ucfirst($run->status)" icon="clock" />
-        <x-stat label="Size" :value="$fmt($run->bytes_in)" icon="archive" />
-        <x-stat label="Files" :value="$run->files ?? '—'" icon="folder" />
-        <x-stat label="Duration" :value="$dur" icon="clock" />
-    </div>
+    @if ($run->status === 'failed')
+        <div class="mb-6"><x-alert type="danger" title="This Scan Failed">{{ $run->error ?: 'The agent could not complete the scan.' }}</x-alert></div>
+    @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2">
-            <x-card title="Log">
-                @if ($run->status === 'failed' && $run->error)
-                    <div class="mb-4"><x-alert type="danger" title="This Run Failed">{{ $run->error }}</x-alert></div>
-                @endif
-                @if ($run->log || $run->error)
-                    <pre class="rounded-lg bg-chrome text-slate-100 text-xs p-4 overflow-x-auto whitespace-pre-wrap">{{ $run->log ?: $run->error }}</pre>
+        {{-- Hardening score gauge --}}
+        <x-card title="Hardening Score" subtitle="Computed from this scan">
+            <div class="mx-auto w-full max-w-[240px]">
+                <svg viewBox="0 0 200 122" width="100%" role="img" aria-label="Hardening score {{ $run->score ?? 'pending' }}">
+                    <path d="M12 110 A88 88 0 0 1 188 110" fill="none" stroke="#e2e8f0" stroke-width="14" stroke-linecap="round" />
+                    @if ($run->score !== null)
+                        <path d="M12 110 A88 88 0 0 1 188 110" fill="none" stroke-width="14" stroke-linecap="round"
+                            stroke="{{ $scoreColor }}" stroke-dasharray="{{ $gaugeDash }} 1000" />
+                        <text x="100" y="92" text-anchor="middle" fill="#0f172a" style="font-size:38px;font-weight:700;font-variant-numeric:tabular-nums">{{ $run->score }}</text>
+                        <text x="100" y="110" text-anchor="middle" fill="#94a3b8" style="font-size:11px">/ 100</text>
+                    @else
+                        <text x="100" y="94" text-anchor="middle" fill="#94a3b8" style="font-size:22px;font-weight:600">—</text>
+                    @endif
+                </svg>
+            </div>
+            <div class="mt-1 flex items-center justify-center">
+                <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset"
+                      style="color:{{ $scoreColor }};background-color:{{ $scoreColor }}14;border-color:{{ $scoreColor }}33">
+                    <span class="h-1.5 w-1.5 rounded-full" style="background-color:{{ $scoreColor }}"></span> {{ $scoreLabel }}
+                </span>
+            </div>
+        </x-card>
+
+        {{-- Summary + severity breakdown --}}
+        <x-card title="Summary" class="lg:col-span-2">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+                <div><p class="text-xs text-slate-500">Status</p><p class="mt-1"><x-badge :color="$statusBadge[$run->status] ?? 'neutral'" dot>{{ $statusLabel[$run->status] ?? ucfirst($run->status) }}</x-badge></p></div>
+                <div><p class="text-xs text-slate-500">Findings</p><p class="mt-1 text-lg font-semibold tabular text-slate-900">{{ $run->findings->count() }}</p></div>
+                <div><p class="text-xs text-slate-500">Duration</p><p class="mt-1 text-sm font-medium text-slate-700">{{ $dur }}</p></div>
+                <div><p class="text-xs text-slate-500">Finished</p><p class="mt-1 text-sm font-medium text-slate-700">{{ $run->finished_at?->diffForHumans() ?? '—' }}</p></div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($order as $sev)
+                    @php [$c, $lbl, $hex] = $sevMeta[$sev]; @endphp
+                    <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ring-1 ring-inset"
+                          style="color:{{ $hex }};background-color:{{ $hex }}12;border-color:{{ $hex }}30">
+                        <span class="h-1.5 w-1.5 rounded-full" style="background-color:{{ $hex }}"></span>
+                        {{ $lbl }}: {{ $counts[$sev] }}
+                    </span>
+                @endforeach
+            </div>
+        </x-card>
+    </div>
+
+    {{-- Findings, grouped by severity --}}
+    <div class="mt-6 space-y-6">
+        @php $hasFindings = $run->findings->isNotEmpty(); @endphp
+        @if (! $hasFindings)
+            <x-card>
+                @if (in_array($run->status, ['queued', 'running']))
+                    <x-empty-state icon="clock" title="Scan In Progress" description="Findings appear here once the agent finishes and reports back." />
                 @else
-                    <p class="text-sm text-slate-500">No log recorded for this run{{ $run->status === 'queued' ? ' — it has not started yet.' : '.' }}</p>
+                    <x-empty-state icon="check-circle" title="No Findings" description="The selected engines did not raise any findings on this scan." />
                 @endif
             </x-card>
-        </div>
-        <div>
-            <x-card title="Details">
-                <dl class="space-y-3 text-sm">
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Status</dt><dd><x-badge :color="$badge[$run->status] ?? 'neutral'" dot>{{ ucfirst($run->status) }}</x-badge></dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Host</dt><dd class="font-medium text-slate-900">{{ $run->job?->host?->name ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Repository</dt><dd class="font-medium text-slate-900">{{ $run->job?->repository?->name ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Snapshot</dt><dd class="font-mono text-xs text-slate-700">@if ($run->snapshot_id)<a href="{{ route('snapshots.browse', $run) }}" class="text-brand-700 hover:text-brand-800 hover:underline">{{ \Illuminate\Support\Str::limit($run->snapshot_id, 16) }}</a>@else—@endif</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Started</dt><dd class="text-slate-700">{{ $run->started_at?->diffForHumans() ?? '—' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-slate-500">Finished</dt><dd class="text-slate-700">{{ $run->finished_at?->diffForHumans() ?? '—' }}</dd></div>
-                </dl>
+        @else
+            @foreach ($order as $sev)
+                @php $items = $grouped[$sev] ?? collect(); @endphp
+                @if ($items->isNotEmpty())
+                    @php [$c, $lbl, $hex] = $sevMeta[$sev]; @endphp
+                    <x-card :title="$lbl . ' (' . $items->count() . ')'" flush>
+                        <x-slot:actions><span class="h-2.5 w-2.5 rounded-full" style="background-color:{{ $hex }}"></span></x-slot:actions>
+                        <ul class="divide-y divide-slate-100">
+                            @foreach ($items as $f)
+                                <li class="px-5 py-4">
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="font-medium text-slate-900">{{ $f->title }}</p>
+                                            @if ($f->detail)<p class="mt-1 text-sm text-slate-600 whitespace-pre-wrap">{{ $f->detail }}</p>@endif
+                                            @if ($f->remediation)
+                                                <p class="mt-2 text-sm text-slate-700"><span class="font-medium text-emerald-700">Remediation:</span> {{ $f->remediation }}</p>
+                                            @endif
+                                        </div>
+                                        <div class="flex shrink-0 items-center gap-2">
+                                            @if ($f->code)<span class="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-500">{{ $f->code }}</span>@endif
+                                            @if ($f->engine)<x-badge color="neutral">{{ $engineLabel[$f->engine] ?? $f->engine }}</x-badge>@endif
+                                        </div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </x-card>
+                @endif
+            @endforeach
+        @endif
+
+        @if ($run->log)
+            <x-card title="Scan Log">
+                <pre class="rounded-lg bg-chrome text-slate-100 text-xs p-4 overflow-x-auto whitespace-pre-wrap">{{ $run->log }}</pre>
             </x-card>
-        </div>
+        @endif
     </div>
 </x-layouts.app>

@@ -13,7 +13,7 @@ class Host extends Model
         'director_id', 'user_id', 'name', 'connection_type', 'hostname', 'ip_address', 'port', 'username',
         'auth_type', 'secret', 'private_key', 'ftp_accounts', 'ingest_protocol', 'ingest_folder',
         'disks', 'default_schedule_template_id',
-        'os', 'arch', 'agent_version', 'status', 'notes',
+        'os', 'arch', 'agent_version', 'latest_score', 'scored_at', 'status', 'notes',
     ];
 
     protected $hidden = ['secret', 'private_key', 'ftp_accounts', 'api_key', 'enrollment_token'];
@@ -26,6 +26,7 @@ class Host extends Model
             'private_key' => 'encrypted',
             'ftp_accounts' => 'encrypted:array',
             'last_seen_at' => 'datetime',
+            'scored_at' => 'datetime',
         ];
     }
 
