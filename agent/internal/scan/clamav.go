@@ -52,15 +52,16 @@ func runClamAV(ctx context.Context, _ Options, logf Logf) (engineResult, error) 
 	}
 
 	logf("clamav: scanning %d path(s): %s", len(dirs), strings.Join(dirs, ", "))
-	// -r recursive, -i print infected only, --no-summary keep output to FOUND lines.
-	// --max-filesize/--max-scansize keep a single huge archive from stalling the scan.
-	// Skip dependency/VCS/cache trees: they are managed by package managers and
-	// balloon the scan (a full-fleet vendor sweep times out) without adding real
-	// coverage — web-shell malware lands in uploads/webroots, not composer deps.
-	args := []string{"-ri", "--no-summary", "--max-filesize=200M", "--max-scansize=400M",
-		"--exclude-dir=(^|/)(\\.git|node_modules|vendor|storage/framework|bootstrap/cache)($|/)"}
+	// -r recursive, -i print infected only, --no-summary keeps output to FOUND
+	// lines. Bounded so a busy multi-site box finishes in minutes, not the cap:
+	//   - --max-filesize=25M / --max-scansize=100M skip the large media/archives
+	//     that dominate scan time (web-shells are small text files).
+	//   - exclude dependency/VCS/cache trees (package-manager owned, huge file
+	//     counts, no real coverage — malware lands in uploads/webroots).
+	args := []string{"-ri", "--no-summary", "--max-filesize=25M", "--max-scansize=100M",
+		"--exclude-dir=(^|/)(\\.git|node_modules|vendor|storage/framework|bootstrap/cache|cache)($|/)"}
 	args = append(args, dirs...)
-	out, err := runCmd(ctx, 20*time.Minute, bin, args...)
+	out, err := runCmd(ctx, 12*time.Minute, bin, args...)
 	if err != nil {
 		return engineResult{log: tailLog("clamav", out)}, err
 	}

@@ -1,6 +1,6 @@
 @php $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn']; @endphp
 <x-layouts.app title="Directors">
-    <x-page-header title="Directors" icon="cloud" subtitle="Scan nodes. Each Director belongs to a Location and runs or queues scans for its Servers.">
+    <x-page-header title="Directors" icon="cloud" subtitle="Scan-coordinator nodes. A Director belongs to a Location and runs or queues scans for its Servers. The local Director is this GuardMGR host itself, so it needs no agent or enrollment.">
         <x-slot:actions>
             <x-button variant="secondary" icon="folder" href="{{ route('locations.index') }}">Locations</x-button>
             <x-button icon="plus" href="{{ route('directors.create') }}">New Director</x-button>
@@ -28,7 +28,7 @@
                         <td>{{ $d->location?->name ?? '—' }}</td>
                         <td class="text-slate-500 font-mono text-xs">{{ $d->hostname ? $d->hostname . ($d->port ? ':' . $d->port : '') : '—' }}</td>
                         <td class="tabular">{{ $d->hosts_count }}</td>
-                        <td><x-badge :color="$statusColor[$d->status] ?? 'neutral'" dot>{{ ucfirst($d->status) }}</x-badge></td>
+                        <td><x-badge :color="$statusColor[$d->effective_status] ?? 'neutral'" dot>{{ ucfirst($d->effective_status) }}</x-badge></td>
                         <td class="text-right">
                             <div class="inline-flex items-center gap-2">
                                 <x-icon-button :href="route('directors.show', $d)" icon="eye" title="Open" />

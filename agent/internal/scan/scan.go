@@ -80,6 +80,7 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 	var findings []api.Finding
 	var log strings.Builder
 	var lynisScore *int
+	engineErrored := false
 
 	for _, engine := range engines {
 		run, ok := registry[engine]
@@ -90,14 +91,20 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 		res, err := run(ctx, opts, logf)
 
 		if err != nil {
-			// Fail-soft: surface the problem as an info finding and keep going.
+			// Fail-soft on the scan as a whole, but an engine that could not
+			// finish means INCOMPLETE coverage — surface it as a high-severity
+			// warning (so the run rolls up to "warn", never a clean success) and
+			// keep running the other engines.
+			engineErrored = true
 			logf("engine %s: %v", engine, err)
 			log.WriteString(fmt.Sprintf("[%s] error: %v\n", engine, err))
 			findings = append(findings, api.Finding{
-				Severity: "info",
-				Engine:   engine,
-				Title:    engine + " scan could not complete",
-				Detail:   err.Error(),
+				Severity:    "high",
+				Engine:      engine,
+				Code:        engine + "-incomplete",
+				Title:       capitalizeWord(engine) + " Scan Did Not Complete (Results Incomplete)",
+				Detail:      "The " + engine + " engine did not finish (" + err.Error() + "), so its coverage for this scan is incomplete and may have missed issues.",
+				Remediation: "Re-run the scan; if it keeps failing, narrow the scope (for malware scans, tighten the target directories) or investigate the engine on the host.",
 			})
 			continue
 		}
@@ -121,12 +128,29 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 		score = &s
 	}
 
+	// An engine that errored means the scan is incomplete: report "warn" so the
+	// master never rolls a partial scan up to a clean success. (High findings
+	// also drive warn on the master; this covers the case where the only issue
+	// is an engine that could not finish.)
+	status := api.RunSuccess
+	if engineErrored {
+		status = api.RunWarn
+	}
+
 	return api.Report{
-		Status:   api.RunSuccess,
+		Status:   status,
 		Score:    score,
 		Findings: findings,
 		Log:      strings.TrimSpace(log.String()),
 	}
+}
+
+// capitalizeWord upper-cases the first letter of s (ASCII), for titles.
+func capitalizeWord(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // scoreFromFindings computes a 0-100 hardening score from finding severities,

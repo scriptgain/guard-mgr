@@ -15,46 +15,12 @@
         <x-slot:actions>
             <x-badge :color="$statusColor[$host->effective_status] ?? 'neutral'" dot>{{ ucfirst($host->effective_status) }}</x-badge>
             <x-button variant="secondary" icon="edit" href="{{ route('hosts.edit', $host) }}">Edit</x-button>
-            @if ($repositories->isNotEmpty())
-                <div x-data="{ qbOpen: false }" class="inline-flex">
-                    <x-button type="button" variant="secondary" icon="play" @click="qbOpen = true">Quick Backup</x-button>
-                    <div x-show="qbOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                        style="background-color: rgba(15,23,42,.55)" @keydown.escape.window="qbOpen = false">
-                        <div class="w-full max-w-md bg-white rounded-xl shadow-2xl ring-1 ring-slate-200" @click.outside="qbOpen = false">
-                            <form method="POST" action="{{ route('hosts.quickBackup', $host) }}">
-                                @csrf
-                                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
-                                    <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2"><x-icon name="play" class="w-4 h-4 text-brand-600" /> Quick Backup</h3>
-                                    <button type="button" @click="qbOpen = false" class="text-slate-400 hover:text-slate-600"><x-icon name="x" class="w-5 h-5" /></button>
-                                </div>
-                                <div class="px-5 py-4 space-y-4 text-left">
-                                    <p class="text-sm text-slate-600">Runs a one-time backup right now to confirm the connection and pipeline work end to end. It does not create a saved job or a schedule.</p>
-                                    <x-field label="Path To Back Up" for="qb_path" hint="A directory on the host.">
-                                        <x-input id="qb_path" name="path" value="{{ (is_array($host->disks) && count($host->disks)) ? $host->disks[0] : '/' }}" required />
-                                    </x-field>
-                                    <x-field label="Repository" for="qb_repo">
-                                        <x-select id="qb_repo" name="repository_id">
-                                            @foreach ($repositories as $repo)
-                                                <option value="{{ $repo->id }}" @selected($defaultRepoId === $repo->id)>{{ $repo->name }}</option>
-                                            @endforeach
-                                        </x-select>
-                                    </x-field>
-                                </div>
-                                <div class="flex items-center justify-end gap-2 px-5 py-3 border-t border-slate-100">
-                                    <x-button type="button" variant="secondary" size="sm" @click="qbOpen = false">Cancel</x-button>
-                                    <x-button type="submit" size="sm" icon="play">Run Backup Now</x-button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            @endif
-            <x-confirm-action name="backup-host-{{ $host->id }}" :action="route('hosts.backup', $host)"
-                title="Run Backup Now?" message="This queues a run for every enabled job on this host." confirm="Back Up Now" confirmIcon="play">
-                <x-button icon="play">Back Up Now</x-button>
+            <x-confirm-action name="scan-host-{{ $host->id }}" :action="route('hosts.backup', $host)"
+                title="Run Scan Now?" message="This queues a scan for every enabled scan job on this Server. The agent picks it up on its next poll." confirm="Run Scan Now" confirmIcon="play">
+                <x-button icon="play">Run Scan Now</x-button>
             </x-confirm-action>
             <x-delete-button :name="'del-host-' . $host->id" :action="route('hosts.destroy', $host)"
-                title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                title="Remove Server?" message="This removes the Server, its scan jobs, and their scan history." />
         </x-slot:actions>
     </x-page-header>
 
@@ -239,12 +205,12 @@
                 @endforeach
             @endif
 
-            <x-card title="Backup Jobs" :flush="$host->jobs->isNotEmpty()">
+            <x-card title="Scan Jobs" :flush="$host->jobs->isNotEmpty()">
                 <x-slot:actions>
                     <x-button size="sm" icon="plus" href="{{ route('jobs.index') }}">New Job</x-button>
                 </x-slot:actions>
                 @if ($host->jobs->isEmpty())
-                    <x-empty-state icon="clock" title="No Jobs Yet" description="Create a backup job to protect this host on a schedule." />
+                    <x-empty-state icon="clock" title="No Jobs Yet" description="Create a scan job to audit this Server on a schedule." />
                 @else
                     <x-table flush>
                         <thead><tr><th>Name</th><th>Type</th><th>Schedule</th><th>Enabled</th></tr></thead>

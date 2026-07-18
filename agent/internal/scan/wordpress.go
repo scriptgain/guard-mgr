@@ -247,7 +247,7 @@ func componentFindings(ctx context.Context, wp, site, owner, kind string) []api.
 			}
 			findings = append(findings, api.Finding{
 				Severity: sev, Engine: "wordpress", Code: "wp-outdated-" + kind + ":" + site + "/" + it.Name,
-				Title:       "Outdated " + capitalize(kind) + ": " + it.Name + " " + it.Version,
+				Title:       "Outdated " + capitalizeWord(kind) + ": " + it.Name + " " + it.Version,
 				Detail:      site + ": " + kind + " '" + it.Name + "' is at " + it.Version + "; " + it.UpdateVersion + " is available. Outdated components are the most common WordPress entry point.",
 				Remediation: "Update the " + kind + " (`wp " + kind + " update " + it.Name + "`), or remove it if unused.",
 			})
@@ -627,14 +627,6 @@ func versionLess(a, b string) bool {
 		}
 	}
 	return false
-}
-
-// capitalize upper-cases the first letter of s (ASCII).
-func capitalize(s string) string {
-	if s == "" {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // numericPrefix returns the leading run of digits in s (e.g. "3beta" -> "3").

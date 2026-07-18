@@ -8,14 +8,14 @@
         return 'danger';
     };
 @endphp
-<x-layouts.app title="Hosts">
-    <x-page-header title="Hosts" icon="server" subtitle="Every protected machine across all Directors.">
+<x-layouts.app title="Servers">
+    <x-page-header title="Servers" icon="server" subtitle="The machines you protect. Each Server runs the GuardMGR agent, gets scanned, and shows its findings and hardening score.">
         <x-slot:actions>
             <x-button variant="secondary" icon="cloud" href="{{ route('directors.index') }}">Directors</x-button>
             @if ($directors->count())
                 <x-dropdown align="right" width="w-56">
                     <x-slot:trigger>
-                        <x-button icon="plus">Add Host</x-button>
+                        <x-button icon="plus">Add Server</x-button>
                     </x-slot:trigger>
                     <p class="px-3 py-2 text-xs font-medium uppercase tracking-wide text-slate-400">Add To Director</p>
                     @foreach ($directors as $d)
@@ -30,7 +30,7 @@
 
     @if ($hosts->isEmpty())
         <x-card>
-            <x-empty-state icon="server" title="No Hosts Yet" description="Add hosts from within a Director.">
+            <x-empty-state icon="server" title="No Servers Yet" description="Add Servers from within a Director.">
                 <x-slot:action><x-button icon="cloud" href="{{ route('directors.index') }}">Go to Directors</x-button></x-slot:action>
             </x-empty-state>
         </x-card>
@@ -63,7 +63,7 @@
                                 <x-icon-button :href="route('hosts.show', $h)" icon="eye" title="Open" />
                                 <x-icon-button :href="route('hosts.edit', $h)" icon="edit" title="Edit" />
                                 <x-delete-button :name="'del-host-' . $h->id" :action="route('hosts.destroy', $h)"
-                                    title="Remove Host?" message="This removes the host, its jobs, and their run history — those snapshots stop being listed here. Data already written to the repository is not removed." />
+                                    title="Remove Server?" message="This removes the Server, its scan jobs, and their scan history." />
                             </div>
                         </td>
                     </tr>

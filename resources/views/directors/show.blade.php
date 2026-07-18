@@ -16,8 +16,16 @@
         <x-stat label="Location" value="{{ $director->location?->name ?? 'Unassigned' }}" icon="folder" />
         <x-stat label="Address" value="{{ $director->hostname ?: '—' }}" icon="server" />
         <x-stat label="Servers" value="{{ $director->hosts->count() }}" icon="database" />
-        <x-stat label="Status" value="{{ ucfirst($director->status) }}" icon="cloud" />
+        <x-stat label="Status" value="{{ ucfirst($director->effective_status) }}" icon="cloud" />
     </div>
+
+    @if ($director->is_local)
+        <div class="mb-6">
+            <x-alert type="info" title="Local Director">
+                This Director is the GuardMGR host itself. It always reads Online and needs no agent, enrollment, or authentication. It runs and queues scans for its Servers directly.
+            </x-alert>
+        </div>
+    @endif
 
     <x-card title="Servers" subtitle="Servers scanned under this Director" :flush="$director->hosts->isNotEmpty()">
         @if ($director->hosts->isEmpty())

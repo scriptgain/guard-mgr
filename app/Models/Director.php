@@ -21,6 +21,20 @@ class Director extends Model
         ];
     }
 
+    /**
+     * Status to display. A local Director IS the GuardMGR host itself — it never
+     * checks in remotely, so it is always Online and never derived from a
+     * heartbeat/last_seen. Remote Directors fall back to their stored status.
+     */
+    public function getEffectiveStatusAttribute(): string
+    {
+        if ($this->is_local) {
+            return 'online';
+        }
+
+        return $this->status ?: 'pending';
+    }
+
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
