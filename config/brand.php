@@ -9,4 +9,6 @@ return [
     // Accent hex; overrides the amber brand ramp at runtime. Settable in the UI.
     // Amber keeps red/rose free for severity + failure states.
     'accent' => env('BRAND_ACCENT', '#ea580c'),
+    // Logo/favicon glyph (an x-icon name). Distinct per product.
+    'icon' => env('BRAND_ICON', 'shield'),
 ];
