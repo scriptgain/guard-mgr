@@ -40,6 +40,15 @@ class DashboardController extends Controller
         $hardeningScore = $scoredHosts->isNotEmpty() ? (int) round($scoredHosts->avg('latest_score')) : null;
         $serverScores = $scoredHosts->take(6);
 
+        // Patch posture — Servers with pending updates or a required reboot.
+        $updateHosts = Host::whereHas('director', $visible)
+            ->where(fn ($q) => $q->where('reboot_required', true)
+                ->orWhere('kernel_update', true)
+                ->orWhere('updates_available', '>', 0))
+            ->orderByDesc('reboot_required')->orderByDesc('kernel_update')->orderByDesc('security_updates')
+            ->get(['id', 'name', 'updates_available', 'security_updates', 'kernel_update', 'reboot_required']);
+        $rebootCount = $updateHosts->where('reboot_required', true)->count();
+
         $attention = Run::whereIn('status', ['failed', 'warn'])
             ->whereHas('job.host.director', $visible)
             ->with('job:id,name,host_id', 'job.host:id,name')
@@ -76,6 +85,7 @@ class DashboardController extends Controller
         return view('dashboard', compact(
             'stats', 'runs', 'failed24h', 'staleHosts', 'hardeningScore', 'attention',
             'activity', 'windowTotal', 'successRate', 'serverScores',
+            'updateHosts', 'rebootCount',
         ));
     }
 }

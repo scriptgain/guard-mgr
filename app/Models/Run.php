@@ -19,6 +19,7 @@ class Run extends Model
     protected $fillable = [
         'backup_job_id', 'status', 'score', 'started_at', 'finished_at',
         'bytes_in', 'bytes_uploaded', 'files', 'snapshot_id', 'log', 'error', 'file_index',
+        'action', 'params', 'progress_pct', 'current_engine', 'progress_log',
     ];
 
     protected function casts(): array
@@ -27,6 +28,7 @@ class Run extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
             'file_index' => 'array',
+            'params' => 'array',
         ];
     }
 

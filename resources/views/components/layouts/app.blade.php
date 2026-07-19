@@ -314,5 +314,67 @@
         window.addEventListener('resize', hide);
     })();
 </script>
+
+{{-- Global loading feedback: a slim top progress bar + a submit spinner on any
+     form submit / navigation, so a confirm-modal POST or an action button never
+     looks frozen while the page reloads. No library (CDN-not-Vite house style).
+     Applied globally here, so Run Scan Now, Apply Fix, Dismiss, deletes, and
+     bulk ops all get it automatically. --}}
+<div id="gm-progress" class="fixed top-0 left-0 h-[3px] w-0 bg-brand-600 z-[10000] opacity-0 pointer-events-none transition-[width] duration-200 ease-out" aria-hidden="true"></div>
+<style>
+    @keyframes gm-spin { to { transform: rotate(360deg); } }
+    .gm-spin { display:inline-block; width:.85em; height:.85em; border:2px solid currentColor; border-top-color:transparent; border-radius:9999px; animation:gm-spin .6s linear infinite; vertical-align:-2px; }
+</style>
+<script>
+    (function () {
+        var bar = document.getElementById('gm-progress');
+        var timer = null, w = 0;
+        function start() {
+            if (!bar) return;
+            clearInterval(timer);
+            w = 8; bar.style.opacity = '1'; bar.style.width = w + '%';
+            timer = setInterval(function () { w += (92 - w) * 0.12; bar.style.width = w + '%'; }, 240);
+        }
+        function done() {
+            if (!bar) return;
+            clearInterval(timer);
+            bar.style.width = '100%';
+            setTimeout(function () { bar.style.opacity = '0'; bar.style.width = '0'; }, 250);
+        }
+        // Swap an action/submit button to a disabled spinner (blocks double-submit).
+        function busyButton(btn) {
+            if (!btn || btn.disabled || btn.dataset.gmBusy) return;
+            btn.dataset.gmBusy = '1';
+            btn.setAttribute('aria-busy', 'true');
+            try { btn.style.minWidth = btn.offsetWidth + 'px'; } catch (e) {}
+            btn.innerHTML = '<span class="gm-spin"></span> Working…';
+            // Disable AFTER the event so the submitter's name/value still POSTs.
+            setTimeout(function () { btn.disabled = true; }, 0);
+        }
+        document.addEventListener('submit', function (e) {
+            var f = e.target;
+            if (e.defaultPrevented) return;                              // JS-handled form
+            if (f.getAttribute && f.getAttribute('target') === '_blank') return;
+            if (f.hasAttribute && f.hasAttribute('data-no-progress')) return;
+            start();
+            busyButton(e.submitter || f.querySelector('button[type=submit], input[type=submit]'));
+        }, true);
+        // Conservative same-tab link navigation (skip new-tab/download/hash/js/
+        // modified-clicks and Alpine-handled anchors).
+        document.addEventListener('click', function (e) {
+            if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            var a = e.target.closest && e.target.closest('a[href]');
+            if (!a || a.target === '_blank' || a.hasAttribute('download') || a.hasAttribute('data-no-progress')) return;
+            // Skip Alpine-handled anchors (@click / x-on:click) without writing
+            // the literal directive here (Blade would parse it).
+            if (a.getAttributeNames && a.getAttributeNames().some(function (n) { return n.charAt(0) === '@' || n.indexOf('x-on:') === 0; })) return;
+            var href = a.getAttribute('href') || '';
+            if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return;
+            start();
+        }, true);
+        // Reset on fresh load and bfcache restore (back button).
+        window.addEventListener('pageshow', done);
+    })();
+</script>
 </body>
 </html>

@@ -25,10 +25,20 @@ type Job struct {
 	Type      string   `json:"type"`      // always "scan"
 	Action    string   `json:"action"`    // scan (default) | apply_template | run_updates | ...
 	Connector string   `json:"connector"` // agent
-	Engines   []string `json:"engines"`   // lynis|rkhunter|chkrootkit|clamav|maldet|ufw|fail2ban|wordpress
+	Engines   []string `json:"engines"`   // lynis|rkhunter|chkrootkit|clamav|maldet|ufw|fail2ban|wordpress|updates
 	// WPScanToken, when set, enables the WPScan vulnerability API in the
 	// wordpress engine. Optional — empty falls back to update heuristics.
 	WPScanToken string `json:"wpscan_token,omitempty"`
+	// Remediation parameters (empty for a scan):
+	//   FixKind    — the remediation slug for a fix_finding action
+	//                (apt-upgrade, install-pkg:<pkg>, postfix-banner,
+	//                disable-vrfy, redis-requirepass, ssh-harden:<opt>,
+	//                sysctl, rkhunter-propupd).
+	//   Target     — the finding code / free-form target the fix acts on.
+	//   UpdateMode — "security" (default) or "all" for a run_updates action.
+	FixKind    string `json:"fix_kind,omitempty"`
+	Target     string `json:"target,omitempty"`
+	UpdateMode string `json:"update_mode,omitempty"`
 }
 
 // Finding is one security finding produced by a scan engine.
@@ -77,4 +87,21 @@ type Report struct {
 	Score    *int      `json:"score,omitempty"`
 	Findings []Finding `json:"findings,omitempty"`
 	Log      string    `json:"log,omitempty"`
+	// Updates is the host's patch posture, set by the updates engine and by a
+	// run_updates action (so the master can refresh reboot_required after an
+	// upgrade). Nil when no update information was gathered.
+	Updates *Updates `json:"updates,omitempty"`
+	// Live-progress fields, sent on interim status=running reports during a scan:
+	// Pct is 0-100, CurrentEngine names the engine in flight, and Log carries a
+	// rolling tail of the same lines the agent prints.
+	Pct           *int   `json:"pct,omitempty"`
+	CurrentEngine string `json:"current_engine,omitempty"`
+}
+
+// Updates is the host's OS/package update posture.
+type Updates struct {
+	Available      int  `json:"available"`       // total upgradable packages
+	Security       int  `json:"security"`        // of which are security updates
+	KernelUpdate   bool `json:"kernel_update"`   // a linux-image update is pending
+	RebootRequired bool `json:"reboot_required"` // reboot needed (flag file or kernel drift)
 }

@@ -14,6 +14,7 @@ class Host extends Model
         'auth_type', 'secret', 'private_key', 'ftp_accounts', 'ingest_protocol', 'ingest_folder',
         'disks', 'default_schedule_template_id',
         'os', 'arch', 'agent_version', 'latest_score', 'scored_at', 'status', 'notes',
+        'is_local', 'updates_available', 'security_updates', 'kernel_update', 'reboot_required', 'updates_checked_at',
     ];
 
     protected $hidden = ['secret', 'private_key', 'ftp_accounts', 'api_key', 'enrollment_token'];
@@ -27,7 +28,41 @@ class Host extends Model
             'ftp_accounts' => 'encrypted:array',
             'last_seen_at' => 'datetime',
             'scored_at' => 'datetime',
+            'updates_checked_at' => 'datetime',
+            'is_local' => 'boolean',
+            'kernel_update' => 'boolean',
+            'reboot_required' => 'boolean',
         ];
+    }
+
+    /**
+     * True when the agent can run a remediation on this Server: the local Server
+     * (runs directly, no enrollment) or an enrolled agent Server.
+     */
+    public function canRemediate(): bool
+    {
+        return $this->is_local || ($this->connection_type === 'agent' && (bool) $this->api_key);
+    }
+
+    /** Queue a one-off remediation action Run for this host's agent. */
+    public function queueAction(string $action, array $params = []): Run
+    {
+        $carrier = $this->jobs()->where('ad_hoc', true)->where('action', 'remediation')->first()
+            ?? $this->jobs()->create([
+                'name' => 'GuardMGR Remediation',
+                'type' => 'scan',
+                'action' => 'remediation',
+                'connector' => $this->connection_type,
+                'engines' => [],
+                'enabled' => true,
+                'ad_hoc' => true,
+            ]);
+
+        return $carrier->runs()->create([
+            'status' => 'queued',
+            'action' => $action,
+            'params' => $params,
+        ]);
     }
 
     /**
@@ -141,6 +176,10 @@ class Host extends Model
      */
     public function getEffectiveStatusAttribute(): string
     {
+        // The local Server is the GuardMGR host itself — always Online.
+        if ($this->is_local) {
+            return 'online';
+        }
         if ($this->connection_type !== 'agent') {
             return $this->status ?: 'pending';
         }

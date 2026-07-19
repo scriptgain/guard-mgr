@@ -201,10 +201,32 @@
         </x-card>
     </div>
 
+    @if ($updateHosts->isNotEmpty())
+        <div class="mt-6">
+            <x-card title="Patch Status" :subtitle="$rebootCount ? $rebootCount . ' ' . Str::plural('Server', $rebootCount) . ' need a reboot' : 'Servers with pending updates'" flush>
+                <x-table flush>
+                    <thead><tr><th>Server</th><th>Updates</th><th>Security</th><th>Kernel</th><th>Reboot</th><th class="text-right">Action</th></tr></thead>
+                    <tbody>
+                        @foreach ($updateHosts as $h)
+                            <tr>
+                                <td class="font-medium text-slate-900"><a href="{{ route('hosts.show', $h) }}" class="hover:text-brand-700">{{ $h->name }}</a></td>
+                                <td class="tabular">{{ $h->updates_available ?? '—' }}</td>
+                                <td class="tabular">@if (($h->security_updates ?? 0) > 0)<span class="font-semibold text-amber-600">{{ $h->security_updates }}</span>@else <span class="text-slate-400">0</span>@endif</td>
+                                <td>@if ($h->kernel_update)<x-badge color="danger" dot>Update</x-badge>@else <span class="text-slate-400">—</span>@endif</td>
+                                <td>@if ($h->reboot_required)<x-badge color="danger" dot>Required</x-badge>@else <span class="text-slate-400">—</span>@endif</td>
+                                <td class="text-right"><a href="{{ route('hosts.show', $h) }}" class="text-xs font-medium text-brand-700 hover:text-brand-800">Manage</a></td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </x-table>
+            </x-card>
+        </div>
+    @endif
+
     @if ($attention->isNotEmpty())
         <div class="mt-6">
             <x-card title="Needs Attention" subtitle="Recent failed or warning scans" flush>
-                <div x-data="{ selected: [], confirming: false, allIds: [{{ $attention->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); f.submit(); } }">
+                <div x-data="{ selected: [], confirming: false, allIds: [{{ $attention->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); (f.requestSubmit ? f.requestSubmit() : f.submit()); } }">
                     <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
                     <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
                         <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>
@@ -254,7 +276,7 @@
                     <x-slot:action><x-button icon="plus" href="{{ route('directors.index') }}">Add a Director</x-button></x-slot:action>
                 </x-empty-state>
             @else
-                <div x-data="{ selected: [], confirming: false, allIds: [{{ $runs->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); f.submit(); } }">
+                <div x-data="{ selected: [], confirming: false, allIds: [{{ $runs->pluck('id')->implode(',') }}], submitBulk() { const f = this.$refs.bulkForm; f.querySelectorAll('input.js-dyn').forEach(n => n.remove()); this.selected.forEach(id => { const i = document.createElement('input'); i.type='hidden'; i.name='ids[]'; i.value=id; i.className='js-dyn'; f.appendChild(i); }); (f.requestSubmit ? f.requestSubmit() : f.submit()); } }">
                     <form method="POST" action="{{ route('runs.bulk-destroy') }}" x-ref="bulkForm" class="hidden">@csrf @method('DELETE')</form>
                     <div x-show="selected.length" x-cloak class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-brand-50 px-4 py-2.5">
                         <span class="text-sm font-medium text-brand-800"><span x-text="selected.length"></span> selected</span>

@@ -44,6 +44,7 @@ type engineResult struct {
 	findings []api.Finding
 	score    *int // non-nil only for score-bearing engines (e.g. Lynis)
 	log      string
+	updates  *api.Updates // non-nil only for the updates engine
 }
 
 // engineFunc runs one engine and returns its findings (+ optional score).
@@ -61,6 +62,7 @@ var registry = map[string]engineFunc{
 	"ufw":        runUfw,
 	"fail2ban":   runFail2ban,
 	"wordpress":  runWordPress,
+	"updates":    runUpdates,
 }
 
 // Supported reports whether an engine key has a runner registered.
@@ -72,7 +74,11 @@ func Supported(key string) bool {
 // Run executes the requested engines and assembles a single scan report. The
 // returned Report always carries a score and (possibly empty) findings; status
 // is left as "success" for the master to downgrade to "warn" on high findings.
-func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Report {
+//
+// onEngine, when non-nil, is called immediately before each engine runs with the
+// number already completed, the total, and the engine name — the caller uses it
+// to publish live progress to the master.
+func Run(ctx context.Context, engines []string, opts Options, logf Logf, onEngine func(completed, total int, engine string)) api.Report {
 	if logf == nil {
 		logf = func(string, ...any) {}
 	}
@@ -80,9 +86,13 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 	var findings []api.Finding
 	var log strings.Builder
 	var lynisScore *int
+	var updates *api.Updates
 	engineErrored := false
 
-	for _, engine := range engines {
+	for i, engine := range engines {
+		if onEngine != nil {
+			onEngine(i, len(engines), engine)
+		}
 		run, ok := registry[engine]
 		if !ok {
 			logf("engine %s: unknown, skipping", engine)
@@ -114,6 +124,10 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 		if res.score != nil {
 			lynisScore = res.score
 		}
+		// Adopt the updates engine's patch posture.
+		if res.updates != nil {
+			updates = res.updates
+		}
 		if res.log != "" {
 			log.WriteString(res.log)
 			log.WriteByte('\n')
@@ -142,6 +156,7 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf) api.Rep
 		Score:    score,
 		Findings: findings,
 		Log:      strings.TrimSpace(log.String()),
+		Updates:  updates,
 	}
 }
 

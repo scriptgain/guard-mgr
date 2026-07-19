@@ -32,10 +32,11 @@ class JobController extends Controller
         'ufw' => ['Firewall (ufw)', 'Checks the host firewall is active and reports exposed ports.', 'Firewall'],
         'fail2ban' => ['fail2ban', 'Reports brute-force jail status and active bans (read-only).', 'Brute-force'],
         'wordpress' => ['WordPress Scanner', 'Per-site WordPress core/plugin integrity, updates, vulns, and webshell grep.', 'WordPress'],
+        'updates' => ['OS Updates', 'Available package + security + kernel updates, and reboot-required status.', 'Updates'],
     ];
 
     /** Category display order for the engine picker + report grouping. */
-    public const ENGINE_CATEGORIES = ['Hardening', 'Rootkit', 'Malware', 'Firewall', 'Brute-force', 'WordPress'];
+    public const ENGINE_CATEGORIES = ['Hardening', 'Rootkit', 'Malware', 'Firewall', 'Brute-force', 'WordPress', 'Updates'];
 
     /** Engines grouped by category, preserving ENGINE_CATEGORIES order. */
     public static function enginesByCategory(): array

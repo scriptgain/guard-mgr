@@ -6,7 +6,7 @@
     </x-page-header>
 
     <form method="POST" action="{{ route('settings.branding.update') }}"
-          x-data="{ accent: '{{ config('brand.accent') }}', name: '{{ addslashes(config('brand.name')) }}' }" class="space-y-6">
+          x-data="{ accent: '{{ config('brand.accent') ?: '#f59e0b' }}', name: '{{ addslashes(config('brand.name')) }}' }" class="space-y-6">
         @csrf
         @method('PUT')
 

@@ -29,6 +29,20 @@ class RunController extends Controller
         return view('runs.show', compact('run'));
     }
 
+    /** Lightweight live-progress feed for the in-progress scan panel (polled). */
+    public function progress(Run $run)
+    {
+        $this->guard($run);
+
+        return response()->json([
+            'status' => $run->status,
+            'progress_pct' => $run->progress_pct,
+            'current_engine' => $run->current_engine,
+            'progress_log' => $run->progress_log,
+            'findings_count' => $run->findings()->count(),
+        ]);
+    }
+
     private function guard(Run $run): void
     {
         abort_unless(

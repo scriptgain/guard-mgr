@@ -1,48 +1,32 @@
 #!/usr/bin/env bash
 #
-# BackupMGR agent installer. Run on the host you want to back up:
+# GuardMGR agent installer. Run on the host you want to scan:
 #
 #   curl -fsSL https://MASTER/downloads/agent-install.sh | sudo bash -s -- https://MASTER <enroll-token>
 #
-# Downloads the agent + bundled kopia from the Manager, enrolls this host, and
-# installs a systemd service that polls for backup jobs. Linux x86_64.
+# Downloads the agent from the master, enrolls this host, and — as part of
+# enrollment — installs an always-on systemd service that polls for scan jobs
+# every ~30s. One command in, a set-and-forget worker out. Linux x86_64.
 set -euo pipefail
 
 MASTER="${1:?usage: agent-install.sh <master-url> <enroll-token>}"
 TOKEN="${2:?usage: agent-install.sh <master-url> <enroll-token>}"
 MASTER="${MASTER%/}"
-DEST="${BACKUP_DIR:-/opt/backup}"
-CFG="/etc/backup/agent.json"
+BIN="/usr/local/bin/guard-agent"
 
 [ "$(id -u)" -eq 0 ] || { echo "Run as root (sudo)."; exit 1; }
 command -v curl >/dev/null || { echo "curl is required."; exit 1; }
 
-echo "==> Downloading agent + kopia from ${MASTER}/downloads"
-mkdir -p "$DEST" /etc/backup
-curl -fsSL "${MASTER}/downloads/agent" -o "$DEST/agent"
-curl -fsSL "${MASTER}/downloads/kopia" -o "$DEST/kopia"
-chmod +x "$DEST/agent" "$DEST/kopia"
+echo "==> Downloading agent from ${MASTER}/downloads/agent"
+curl -fsSL "${MASTER}/downloads/agent" -o "$BIN"
+chmod +x "$BIN"
 
-echo "==> Enrolling with the Manager"
-"$DEST/agent" enroll -master "$MASTER" -token "$TOKEN" -config "$CFG"
+echo "==> Enrolling with the master (this also installs + starts the systemd service)"
+"$BIN" enroll -master "$MASTER" -token "$TOKEN"
 
-echo "==> Installing systemd service"
-cat > /etc/systemd/system/backup-agent.service <<UNIT
-[Unit]
-Description=BackupMGR agent
-After=network-online.target
-Wants=network-online.target
+# Belt-and-suspenders: ensure the service is installed even if enrollment ran in
+# an environment where the auto-install was skipped. Idempotent.
+"$BIN" install >/dev/null 2>&1 || true
 
-[Service]
-ExecStart=${DEST}/agent run -config ${CFG}
-Restart=always
-RestartSec=5
-User=root
-
-[Install]
-WantedBy=multi-user.target
-UNIT
-
-systemctl daemon-reload
-systemctl enable --now backup-agent
-echo "==> Done. The agent is enrolled and running (systemctl status backup-agent)."
+echo "==> Done. guard-agent is enrolled and running:"
+systemctl --no-pager status guard-agent | head -n 5 || true

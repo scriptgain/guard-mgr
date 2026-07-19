@@ -23,13 +23,16 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/thelonelyfrog/guard/agent/internal/api"
 	"github.com/thelonelyfrog/guard/agent/internal/config"
+	"github.com/thelonelyfrog/guard/agent/internal/remediate"
 	"github.com/thelonelyfrog/guard/agent/internal/scan"
 	"github.com/thelonelyfrog/guard/agent/internal/selfupdate"
+	"github.com/thelonelyfrog/guard/agent/internal/service"
 )
 
 var version = "dev"
@@ -46,6 +49,10 @@ func main() {
 		fmt.Printf("guard-agent %s\n", version)
 	case "enroll":
 		err = cmdEnroll(args)
+	case "install":
+		err = cmdInstall(args)
+	case "uninstall":
+		err = cmdUninstall(args)
 	case "run":
 		err = cmdRun(args)
 	case "help", "-h", "--help":
@@ -65,10 +72,43 @@ func usage() {
 
 usage:
   guard-agent version
-  guard-agent enroll -master <url> -token <token>
+  guard-agent enroll -master <url> -token <token>   (auto-installs the service)
+  guard-agent install                               (install + enable systemd service)
+  guard-agent uninstall                             (disable + remove systemd service)
   guard-agent run
 `)
 }
+
+// cmdInstall installs the always-on systemd service pointing at the agent config.
+func cmdInstall(args []string) error {
+	fs := flag.NewFlagSet("install", flag.ExitOnError)
+	cfgPath := fs.String("config", config.DefaultPath(), "agent config path")
+	fs.Parse(args)
+
+	masterURL := ""
+	if cfg, err := config.Load(*cfgPath); err == nil {
+		masterURL = cfg.MasterURL
+	}
+	if err := service.Install(*cfgPath, masterURL, logf); err != nil {
+		return err
+	}
+	fmt.Println("guard-agent service installed and running (systemctl status guard-agent).")
+	return nil
+}
+
+// cmdUninstall removes the systemd service.
+func cmdUninstall(args []string) error {
+	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
+	fs.Parse(args)
+	if err := service.Uninstall(logf); err != nil {
+		return err
+	}
+	fmt.Println("guard-agent service removed.")
+	return nil
+}
+
+// logf is a simple stdout logger for the install/enroll commands.
+func logf(format string, a ...any) { fmt.Printf(format+"\n", a...) }
 
 func cmdEnroll(args []string) error {
 	fs := flag.NewFlagSet("enroll", flag.ExitOnError)
@@ -103,6 +143,17 @@ func cmdEnroll(args []string) error {
 		return err
 	}
 	fmt.Printf("enrolled as host %s; config saved to %s\n", resp.HostID, *cfgPath)
+
+	// Productized worker: enrolling a host turns it into an always-on poller.
+	// Best effort — if systemd/root isn't available, the operator can still run
+	// `guard-agent run` (or `guard-agent install`) manually.
+	if os.Geteuid() == 0 {
+		if err := service.Install(*cfgPath, *master, logf); err != nil {
+			fmt.Fprintf(os.Stderr, "note: could not install the systemd service automatically (%v); run `guard-agent install` after fixing.\n", err)
+		}
+	} else {
+		fmt.Println("run `sudo guard-agent install` to start the always-on service.")
+	}
 	return nil
 }
 
@@ -189,8 +240,12 @@ func executeJob(ctx context.Context, client *api.Client, job *api.Job) {
 	switch jobAction(job) {
 	case "scan":
 		runScan(ctx, client, job)
-	case "apply_template", "run_updates", "firewall_apply", "quarantine":
-		// Phase 3-4 remediation actions — not implemented yet.
+	case "fix_finding":
+		runFixFinding(ctx, client, job)
+	case "run_updates":
+		runUpdatesAction(ctx, client, job)
+	case "apply_template", "firewall_apply", "quarantine":
+		// Reserved seams for later phases — not implemented yet.
 		msg := "Action '" + jobAction(job) + "' is not supported by this agent version (" + version + ")."
 		fmt.Fprintln(os.Stderr, "job:", msg)
 		_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunFailed, Log: msg})
@@ -201,16 +256,113 @@ func executeJob(ctx context.Context, client *api.Client, job *api.Job) {
 	}
 }
 
-// runScan executes the requested engines and reports the result. It never
-// panics the loop: even a total scan failure is reported as a failed run.
+// runFixFinding applies a single finding's remediation and reports the result.
+// On success the master flips the finding to "applied". Every config edit is
+// backed up by the remediate package; the backup path is included in the log.
+func runFixFinding(ctx context.Context, client *api.Client, job *api.Job) {
+	logf := func(f string, a ...any) { fmt.Printf("run %s: "+f+"\n", append([]any{job.RunID}, a...)...) }
+	res, err := remediate.FixFinding(ctx, job.FixKind, job.Target, logf)
+	log := res.Log
+	if res.BackupPath != "" {
+		log += "\n\nBackup (for revert): " + res.BackupPath
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fix_finding:", err)
+		_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunFailed, Log: strings.TrimSpace(log + "\n\nerror: " + err.Error())})
+		return
+	}
+	_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunSuccess, Log: strings.TrimSpace(log), Updates: res.Updates})
+}
+
+// runUpdatesAction applies OS updates (security-only or all) and reports the
+// result plus the refreshed reboot-required posture.
+func runUpdatesAction(ctx context.Context, client *api.Client, job *api.Job) {
+	logf := func(f string, a ...any) { fmt.Printf("run %s: "+f+"\n", append([]any{job.RunID}, a...)...) }
+	mode := job.UpdateMode
+	if mode == "" {
+		mode = "security"
+	}
+	res, err := remediate.RunUpdates(ctx, mode, logf)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "run_updates:", err)
+		_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunFailed, Log: strings.TrimSpace(res.Log + "\n\nerror: " + err.Error())})
+		return
+	}
+	_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunSuccess, Log: strings.TrimSpace(res.Log), Updates: res.Updates})
+}
+
+// runScan executes the requested engines and reports the result. While it runs
+// it streams live progress to the master (percentage, current engine, and a
+// rolling log tail) so the report page shows real-time activity instead of a
+// bare "running". It never panics the loop: a total scan failure is reported as
+// a failed run.
 func runScan(ctx context.Context, client *api.Client, job *api.Job) {
 	engines := job.Engines
 	if len(engines) == 0 {
 		engines = []string{"lynis"}
 	}
-	report := scan.Run(ctx, engines, scan.Options{WPScanToken: job.WPScanToken}, func(f string, a ...any) {
-		fmt.Printf("run %s: "+f+"\n", append([]any{job.RunID}, a...)...)
-	})
+
+	// Shared, mutex-guarded progress state: a rolling log tail plus the current
+	// percentage and engine, flushed to the master on each engine boundary and
+	// every ~12s (for long engines like ClamAV).
+	var mu sync.Mutex
+	logBuf := make([]string, 0, 64)
+	pct := 0
+	current := "starting"
+
+	appendLog := func(line string) {
+		mu.Lock()
+		logBuf = append(logBuf, line)
+		if len(logBuf) > 200 {
+			logBuf = logBuf[len(logBuf)-200:]
+		}
+		mu.Unlock()
+	}
+	var sendMu sync.Mutex
+	sendProgress := func() {
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		mu.Lock()
+		p, eng, tail := pct, current, strings.Join(logBuf, "\n")
+		mu.Unlock()
+		_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunRunning, Pct: &p, CurrentEngine: eng, Log: tail})
+	}
+
+	logf := func(f string, a ...any) {
+		msg := fmt.Sprintf(f, a...)
+		fmt.Printf("run %s: %s\n", job.RunID, msg)
+		appendLog(msg)
+	}
+	onEngine := func(completed, total int, engine string) {
+		mu.Lock()
+		if total > 0 {
+			pct = completed * 100 / total
+		}
+		current = engine
+		mu.Unlock()
+		appendLog(fmt.Sprintf("▶ %s (%d/%d)", engine, completed+1, total))
+		sendProgress()
+	}
+
+	// Ticker to keep progress fresh during long-running engines.
+	tickCtx, stopTick := context.WithCancel(ctx)
+	defer stopTick()
+	go func() {
+		t := time.NewTicker(12 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-tickCtx.Done():
+				return
+			case <-t.C:
+				sendProgress()
+			}
+		}
+	}()
+
+	report := scan.Run(ctx, engines, scan.Options{WPScanToken: job.WPScanToken}, logf, onEngine)
+	stopTick() // stop interim updates before the final report
+
 	if report.Score != nil {
 		fmt.Printf("run %s: score=%d, %d finding(s)\n", job.RunID, *report.Score, len(report.Findings))
 	}

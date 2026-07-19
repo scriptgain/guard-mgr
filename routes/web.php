@@ -95,7 +95,17 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('runs', [RunController::class, 'index'])->name('runs.index');
     Route::delete('runs/bulk', [RunController::class, 'bulkDestroy'])->name('runs.bulk-destroy');
     Route::get('runs/{run}', [RunController::class, 'show'])->name('runs.show');
+    Route::get('runs/{run}/progress', [RunController::class, 'progress'])->name('runs.progress');
     Route::delete('runs/{run}', [RunController::class, 'destroy'])->name('runs.destroy');
+
+    // Remediation — the "fix it" layer (per-finding + bulk + per-Server updates).
+    Route::post('findings/{finding}/apply', [\App\Http\Controllers\RemediationController::class, 'apply'])->name('findings.apply');
+    Route::post('findings/{finding}/mark-fixed', [\App\Http\Controllers\RemediationController::class, 'markFixed'])->name('findings.mark-fixed');
+    Route::post('findings/{finding}/dismiss', [\App\Http\Controllers\RemediationController::class, 'dismiss'])->name('findings.dismiss');
+    Route::post('findings/{finding}/reopen', [\App\Http\Controllers\RemediationController::class, 'reopen'])->name('findings.reopen');
+    Route::post('runs/{run}/findings/bulk', [\App\Http\Controllers\RemediationController::class, 'bulk'])->name('findings.bulk');
+    Route::post('hosts/{host}/update-now', [\App\Http\Controllers\RemediationController::class, 'runUpdates'])->name('hosts.update-now');
+    Route::post('hosts/{host}/check-updates', [\App\Http\Controllers\RemediationController::class, 'checkUpdates'])->name('hosts.check-updates');
 
     // Schedule templates
     Route::get('schedule-templates', [ScheduleTemplateController::class, 'index'])->name('schedule-templates.index');
