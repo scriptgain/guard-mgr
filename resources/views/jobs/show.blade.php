@@ -126,7 +126,7 @@
                 <ul class="space-y-2 text-sm">
                     @foreach ($job->engineList() as $e)
                         <li class="flex items-center gap-2">
-                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 ring-1 ring-brand-100"><x-icon name="shield" class="h-3.5 w-3.5" /></span>
+                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-brand-50 text-brand-600 ring-1 ring-brand-200"><x-icon name="shield" class="h-3.5 w-3.5" /></span>
                             <span class="font-medium text-slate-800">{{ $engineLabels[$e] ?? ucfirst($e) }}</span>
                         </li>
                     @endforeach
