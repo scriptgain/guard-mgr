@@ -1,5 +1,5 @@
 @php $accent = config('brand.accent'); @endphp
-@if ($accent && strtolower($accent) !== '#f59e0b')
+@if ($accent && strtolower($accent) !== '#ea580c')
     {{-- Re-tint the entire brand ramp from the chosen accent (custom brands only;
          the default amber uses the hand-tuned scale in app.css). --}}
     <style>

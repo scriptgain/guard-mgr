@@ -15,7 +15,7 @@
     // separate x-accent-style block) avoids a cascade race against the CSS the
     // browser build injects at runtime. Mirrors x-accent-style's ramp formula.
     $accent = config('brand.accent');
-    if ($accent && strtolower($accent) !== '#f59e0b') {
+    if ($accent && strtolower($accent) !== '#ea580c') {
         $a = preg_replace('/[^#0-9a-zA-Z(),.% ]/', '', $accent); // keep it a plain color value
         $tokens .= "\n@theme {\n"
             ."  --color-brand-50: color-mix(in srgb, {$a}, white 92%);\n"
