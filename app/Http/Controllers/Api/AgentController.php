@@ -50,17 +50,11 @@ class AgentController extends Controller
         $host = $request->attributes->get('agent_host');
         $host->forceFill(['last_seen_at' => now(), 'status' => 'online'])->save();
 
-        // This agent runs jobs for its own host (agent connector) AND acts as the
-        // gateway for agentless hosts (ftp/sftp/rsync/ssh) in the same Director.
+        // The agent runs scan jobs for its own host — it scans the machine it is
+        // installed on, so a run is only claimable when it belongs to this host.
         $run = Run::where('status', 'queued')
             ->whereHas('job', function ($q) use ($host) {
-                $q->where('enabled', true)->where(function ($w) use ($host) {
-                    $w->where('host_id', $host->id)
-                        ->orWhereHas('host', function ($h) use ($host) {
-                            $h->where('director_id', $host->director_id)
-                                ->whereIn('connection_type', ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp', 'ingest']);
-                        });
-                });
+                $q->where('enabled', true)->where('host_id', $host->id);
             })
             ->orderBy('id')
             ->with('job.host')
@@ -106,20 +100,14 @@ class AgentController extends Controller
     }
 
     /**
-     * Ensure the authenticated agent is entitled to act on this run: either it
-     * is the run's own host, or it is the gateway agent for an agentless host in
-     * the same Director. Mirrors the claim scope in poll().
+     * Ensure the authenticated agent is entitled to act on this run: the run must
+     * belong to the agent's own host. Mirrors the claim scope in poll().
      */
     private function authorizeRunForAgent(Request $request, Run $run): void
     {
         $host = $request->attributes->get('agent_host');
         $rh = $run->loadMissing('job.host')->job?->host;
-        abort_unless(
-            $rh && ($rh->id === $host->id
-                || ($rh->director_id === $host->director_id
-                    && in_array($rh->connection_type, ['ftp', 'sftp', 'rsync', 'ssh', 'multiftp', 'ingest'], true))),
-            403
-        );
+        abort_unless($rh && $rh->id === $host->id, 403);
     }
 
     /**

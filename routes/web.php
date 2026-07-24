@@ -70,13 +70,9 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('directors/{director}/hosts', [HostController::class, 'store'])->name('hosts.store');
     Route::get('hosts', [HostController::class, 'index'])->name('hosts.index');
     Route::get('hosts/{host}/edit', [HostController::class, 'edit'])->name('hosts.edit');
-    Route::get('hosts/{host}/browse', [HostController::class, 'browse'])->name('hosts.browse');
-    Route::post('hosts/{host}/mkdir', [HostController::class, 'makeDir'])->name('hosts.mkdir');
     Route::get('hosts/{host}', [HostController::class, 'show'])->name('hosts.show');
     Route::put('hosts/{host}', [HostController::class, 'update'])->name('hosts.update');
-    Route::put('hosts/{host}/ftp-account/{index}', [HostController::class, 'updateFtpAccount'])->name('hosts.ftpaccount.update');
     Route::post('hosts/{host}/scan', [HostController::class, 'scan'])->name('hosts.scan');
-    Route::post('hosts/{host}/test-connection', [HostController::class, 'testConnection'])->name('hosts.test');
     Route::post('hosts/{host}/enroll', [HostController::class, 'enroll'])->name('hosts.enroll');
     Route::delete('hosts/{host}', [HostController::class, 'destroy'])->name('hosts.destroy');
 

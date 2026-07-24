@@ -1,6 +1,5 @@
 @php
     $statusColor = ['online' => 'success', 'offline' => 'danger', 'pending' => 'warn', 'stale' => 'warn'];
-    $connLabel = ['agent' => 'Agent', 'ssh' => 'SSH', 'sftp' => 'SFTP', 'ftp' => 'FTP', 'rsync' => 'Rsync', 'multiftp' => 'Multi-FTP', 's3' => 'S3 Compatible', 'ingest' => 'Ingest'];
     $fmtBytes = function ($b) { if ($b === null) return '—'; $u=['B','KB','MB','GB','TB']; $i=0; while($b>=1000&&$i<4){$b/=1000;$i++;} return round($b,$i?1:0).' '.$u[$i]; };
 @endphp
 <x-layouts.app :title="$director->name">
@@ -35,15 +34,13 @@
         @else
             <x-table flush>
                 <thead>
-                    <tr><th>Name</th><th>Connection</th><th>Address</th><th>Disks</th><th>Status</th><th class="text-right">Actions</th></tr>
+                    <tr><th>Name</th><th>Hardening</th><th>Status</th><th class="text-right">Actions</th></tr>
                 </thead>
                 <tbody>
                     @foreach ($director->hosts as $h)
                         <tr>
                             <td class="font-medium text-slate-900"><a href="{{ route('hosts.show', $h) }}" class="hover:text-brand-700">{{ $h->name }}</a></td>
-                            <td><x-badge color="neutral">{{ $connLabel[$h->connection_type] ?? $h->connection_type }}</x-badge></td>
-                            <td class="text-slate-500 font-mono text-xs">{{ $h->ip_address ?: ($h->hostname ?: '—') }}</td>
-                            <td class="tabular">{{ is_array($h->disks) ? count($h->disks) : 0 }}</td>
+                            <td>@if ($h->latest_score !== null)<x-badge color="neutral">{{ $h->latest_score }}/100</x-badge>@else<span class="text-slate-400 text-sm">—</span>@endif</td>
                             <td><x-badge :color="$statusColor[$h->effective_status] ?? 'neutral'" dot>{{ ucfirst($h->effective_status) }}</x-badge></td>
                             <td class="text-right">
                                 <div class="inline-flex items-center gap-2">
