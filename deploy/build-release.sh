@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Build a distributable BackupMGR release for the scriptgain.com download.
-# Produces  dist/backup-manager-<version>.zip  containing a clean source tree
+# Produces  dist/guard-mgr-<version>.tar.gz  containing a clean source tree
 # (installer runs composer/npm on the target), the prebuilt scan agent
 # binaries the Manager serves to hosts, and a VERSION stamp.
 #
@@ -16,7 +16,7 @@ VERSION="${1:-$(cat VERSION 2>/dev/null || true)}"
 [ -n "$VERSION" ] || { echo "Set a version: deploy/build-release.sh <version>  (or create ./VERSION)"; exit 1; }
 VERSION="${VERSION#v}"
 
-NAME="backup-manager-${VERSION}"
+NAME="guard-mgr-${VERSION}"
 OUT="$ROOT/dist"
 STAGE="$OUT/$NAME"
 rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -59,30 +59,14 @@ License:
   Buy / manage at https://scriptgain.com/products/backup-manager
 TXT
 
-echo "==> Zipping"
+echo "==> Packaging (gzipped tarball, files at root for tar xzf -C)"
 mkdir -p "$OUT"
-rm -f "$OUT/$NAME.zip"
-if command -v zip >/dev/null; then
-  ( cd "$OUT" && zip -rqX "$NAME.zip" "$NAME" )
-else
-  # Portable fallback when the zip binary is absent.
-  ( cd "$OUT" && python3 - "$NAME" <<'PY'
-import os, sys, zipfile
-name = sys.argv[1]
-with zipfile.ZipFile(name + ".zip", "w", zipfile.ZIP_DEFLATED) as z:
-    for root, _, files in os.walk(name):
-        for f in files:
-            p = os.path.join(root, f)
-            zi = zipfile.ZipInfo.from_file(p, p)
-            if os.access(p, os.X_OK):
-                zi.external_attr = (0o755 << 16)
-            with open(p, "rb") as fh:
-                z.writestr(zi, fh.read(), zipfile.ZIP_DEFLATED)
-PY
-  )
-fi
+rm -f "$OUT/$NAME.tar.gz"
+# Files sit at the tarball root (not under $NAME/) so the self-updater can
+# `tar xzf <file> -C <app-root>` with no --strip-components.
+tar czf "$OUT/$NAME.tar.gz" -C "$STAGE" .
 rm -rf "$STAGE"
 
-SIZE=$(du -h "$OUT/$NAME.zip" | cut -f1)
-echo "==> Built $OUT/$NAME.zip ($SIZE)"
-echo "    sha256: $(sha256sum "$OUT/$NAME.zip" | cut -d' ' -f1)"
+SIZE=$(du -h "$OUT/$NAME.tar.gz" | cut -f1)
+echo "==> Built $OUT/$NAME.tar.gz ($SIZE)"
+echo "    sha256: $(sha256sum "$OUT/$NAME.tar.gz" | cut -d' ' -f1)"
