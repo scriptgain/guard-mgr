@@ -63,7 +63,7 @@ class AgentController extends Controller
                 });
             })
             ->orderBy('id')
-            ->with('job.repository', 'job.retentionPolicy', 'job.host')
+            ->with('job.host')
             ->first();
 
         if (! $run) {

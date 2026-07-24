@@ -38,7 +38,7 @@ class JobController extends Controller
     {
         $this->guard($job);
 
-        return $job->load('host:id,name', 'repository:id,name', 'retentionPolicy');
+        return $job->load('host:id,name');
     }
 
     public function update(Request $request, ScanJob $job)

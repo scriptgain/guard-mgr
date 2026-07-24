@@ -53,7 +53,7 @@ class DirectorController extends Controller
     public function show(Director $director)
     {
         $this->guard($director);
-        $director->load(['location', 'hosts' => fn ($q) => $q->latest(), 'storageDevices']);
+        $director->load(['location', 'hosts' => fn ($q) => $q->latest()]);
 
         return view('directors.show', compact('director'));
     }
