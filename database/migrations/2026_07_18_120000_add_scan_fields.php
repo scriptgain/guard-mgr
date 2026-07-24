@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 /*
  * Phase 2 scan-engine fields.
  *
- *  - backup_jobs.engines: which security scanners a Scan Job runs
+ *  - scan_jobs.engines: which security scanners a Scan Job runs
  *    (lynis|rkhunter|ufw), stored as a JSON array. Replaces the backup job's
  *    repository/retention/source config as the thing that defines the work.
  *  - hosts.latest_score / scored_at: the server's most recent hardening score,
@@ -18,7 +18,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('backup_jobs', function (Blueprint $table) {
+        Schema::table('scan_jobs', function (Blueprint $table) {
             // What the agent should do for this job. 'scan' today; the seam lets
             // Phase 3-4 add apply_template / run_updates / firewall_apply /
             // quarantine without reshaping the job/poll contract.
@@ -34,7 +34,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('backup_jobs', function (Blueprint $table) {
+        Schema::table('scan_jobs', function (Blueprint $table) {
             $table->dropColumn('engines');
         });
         Schema::table('hosts', function (Blueprint $table) {

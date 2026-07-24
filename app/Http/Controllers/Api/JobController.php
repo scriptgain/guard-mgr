@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Run;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class JobController extends Controller
 {
-    private function guard(BackupJob $job): void
+    private function guard(ScanJob $job): void
     {
         abort_unless($job->host?->isVisibleTo(auth()->user()), 403);
     }
 
     public function index(Request $request)
     {
-        return BackupJob::whereHas('host', fn ($q) => $q->visibleTo(auth()->user()))
+        return ScanJob::whereHas('host', fn ($q) => $q->visibleTo(auth()->user()))
             ->when($request->integer('host_id'), fn ($q, $id) => $q->where('host_id', $id))
             ->with('host:id,name')
             ->latest()
@@ -31,17 +31,17 @@ class JobController extends Controller
         $host = \App\Models\Host::findOrFail($data['host_id']);
         abort_unless($host->isVisibleTo(auth()->user()), 403);
 
-        return response()->json(BackupJob::create($data), 201);
+        return response()->json(ScanJob::create($data), 201);
     }
 
-    public function show(BackupJob $job)
+    public function show(ScanJob $job)
     {
         $this->guard($job);
 
         return $job->load('host:id,name', 'repository:id,name', 'retentionPolicy');
     }
 
-    public function update(Request $request, BackupJob $job)
+    public function update(Request $request, ScanJob $job)
     {
         $this->guard($job);
         $data = $this->validateJob($request, updating: true);
@@ -55,7 +55,7 @@ class JobController extends Controller
         return $job;
     }
 
-    public function destroy(BackupJob $job)
+    public function destroy(ScanJob $job)
     {
         $this->guard($job);
         $job->delete();
@@ -64,11 +64,11 @@ class JobController extends Controller
     }
 
     /** Queue a run now. The director/agent picks it up on its next poll. */
-    public function run(BackupJob $job)
+    public function run(ScanJob $job)
     {
         $this->guard($job);
         $run = Run::create([
-            'backup_job_id' => $job->id,
+            'scan_job_id' => $job->id,
             'status' => 'queued',
         ]);
 

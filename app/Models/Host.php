@@ -245,6 +245,6 @@ class Host extends Model
 
     public function jobs(): HasMany
     {
-        return $this->hasMany(BackupJob::class);
+        return $this->hasMany(ScanJob::class);
     }
 }

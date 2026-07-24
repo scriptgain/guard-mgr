@@ -1,10 +1,8 @@
 @php
     $cards = [
-        ['General', 'Regional display, backup defaults, agents, and security.', 'settings', route('settings.general.edit'), true],
-        ['Repositories', 'Storage targets (S3 / filesystem) with encryption + compression.', 'cloud', route('repositories.index'), true],
-        ['Storage & Disks', 'Detected disks and usage across your directors.', 'cloud', route('settings.storage.index'), true],
+        ['General', 'Regional display, scan defaults, agents, and security.', 'settings', route('settings.general.edit'), true],
         ['Schedule Templates', 'Prebuilt schedules to assign to hosts and jobs.', 'clock', route('schedule-templates.index'), true],
-        ['Notifications', 'Email alerts when a backup fails.', 'bell', route('settings.notifications.edit'), true],
+        ['Notifications', 'Email alerts when a scan fails.', 'bell', route('settings.notifications.edit'), true],
         ['Integrations', 'Slack, Discord, Telegram, and webhook alerts.', 'bolt', route('settings.integrations.edit'), true],
         ['Branding', 'Product name, tagline, and accent color.', 'edit', route('settings.branding.edit'), true],
         ['API Tokens', 'Create and revoke full-access API tokens.', 'key', route('settings.tokens.index'), true],
@@ -13,7 +11,6 @@
         ['License', 'Enter your key, sync entitlement, and manage your subscription.', 'shield', route('settings.license.edit'), true],
         ['Updates', 'Check for and install the latest release.', 'download', route('settings.updates.show'), true],
         ['Backup & Restore', 'Back up and restore this panel configuration.', 'archive', route('settings.backup.index'), true],
-        ['Maintenance', 'Repository pruning and kopia maintenance windows.', 'refresh', route('settings.maintenance.edit'), true],
     ];
     if (auth()->user()->isAdmin()) {
         $cards[] = ['Host & SSL', 'Set the hostname and issue an SSL certificate.', 'globe', route('settings.host.edit'), true];
@@ -23,7 +20,7 @@
     }
 @endphp
 <x-layouts.app title="Settings">
-    <x-page-header title="Settings" icon="settings" subtitle="Configure repositories, schedules, tokens, and branding." />
+    <x-page-header title="Settings" icon="settings" subtitle="Configure scans, schedules, tokens, and branding." />
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         @foreach ($cards as [$title, $desc, $icon, $href, $ready])

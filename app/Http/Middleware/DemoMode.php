@@ -34,7 +34,7 @@ class DemoMode
 
         // File managers are ALWAYS disabled in the demo: never expose the host
         // or server filesystem, on any verb or via a direct URL.
-        if ($request->routeIs('hosts.browse', 'hosts.mkdir', 'snapshots.browse') || $request->is('*/browse', '*/mkdir')) {
+        if ($request->routeIs('hosts.browse', 'hosts.mkdir') || $request->is('*/browse', '*/mkdir')) {
             if ($request->expectsJson() || $request->ajax()) {
                 return response()->json(['path' => '', 'parent' => null, 'entries' => [], 'error' => 'File browsing is disabled in the demo.'], 200);
             }

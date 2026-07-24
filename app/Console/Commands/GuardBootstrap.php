@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\ApiToken;
 use App\Models\Director;
-use App\Models\Repository;
 use App\Models\ScheduleTemplate;
 use App\Models\Setting;
 use App\Models\User;
@@ -12,7 +11,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-class BackupBootstrap extends Command
+class GuardBootstrap extends Command
 {
     protected $signature = 'guard:bootstrap {--fresh-token : Issue a new full-access token even if one exists}';
 
@@ -25,19 +24,6 @@ class BackupBootstrap extends Command
             ['name' => 'Local Director', 'is_local' => true, 'status' => 'online', 'region' => 'manager']
         );
         $this->info("Local director ready (#{$director->id}).");
-
-        // A ready-to-use default backup location, wired to the local Director so
-        // the operator doesn't have to create a repository or pick a director.
-        $path = Setting::get('default_backup_path') ?: '/var/backups/backupmgr';
-        $repo = Repository::firstOrCreate(
-            ['director_id' => $director->id, 'name' => 'Local Backups'],
-            ['backend' => 'filesystem', 'config' => ['path' => $path]]
-        );
-        if (empty($repo->password)) {
-            $repo->password = Str::random(40);
-            $repo->save();
-        }
-        $this->info("Default repository ready (#{$repo->id}) at {$path}.");
 
         $templates = [
             ['Every Hour', '0 * * * *', 'Runs at the top of every hour.'],

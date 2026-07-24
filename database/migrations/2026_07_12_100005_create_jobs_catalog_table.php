@@ -8,12 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Named backup_jobs to avoid colliding with Laravel's queue "jobs" table.
-        Schema::create('backup_jobs', function (Blueprint $table) {
+        // Named scan_jobs to avoid colliding with Laravel's queue "jobs" table.
+        Schema::create('scan_jobs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('host_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('repository_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('retention_policy_id')->nullable()->constrained()->nullOnDelete();
             $table->string('name');
             $table->string('type')->default('files');      // files|mysql|postgres|composite
             $table->string('connector')->default('agent'); // usually mirrors host connection
@@ -32,6 +30,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('backup_jobs');
+        Schema::dropIfExists('scan_jobs');
     }
 };

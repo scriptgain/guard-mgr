@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Director;
 use App\Models\Finding;
 use App\Models\Host;
@@ -46,7 +46,7 @@ class DemoSeeder extends Seeder
     public function run(): void
     {
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        foreach (['findings', 'runs', 'backup_jobs', 'hosts', 'schedule_templates', 'directors', 'locations'] as $t) {
+        foreach (['findings', 'runs', 'scan_jobs', 'hosts', 'schedule_templates', 'directors', 'locations'] as $t) {
             DB::table($t)->truncate();
         }
         DB::statement('SET FOREIGN_KEY_CHECKS=1');
@@ -113,7 +113,7 @@ class DemoSeeder extends Seeder
                 continue; // enrolled, not yet scanned
             }
 
-            $job = BackupJob::create([
+            $job = ScanJob::create([
                 'host_id' => $host->id, 'name' => $hn.' security scan', 'type' => 'scan', 'action' => 'scan',
                 'engines' => 'lynis,rkhunter,chkrootkit,clamav,fail2ban,updates', 'connector' => 'agent',
                 'schedule_cron' => '0 2 * * *', 'enabled' => true, 'ad_hoc' => false, 'prune_after_backup' => false,
@@ -129,7 +129,7 @@ class DemoSeeder extends Seeder
                 // earlier scans score a little lower (improving posture over time)
                 $score = $status === 'failed' ? null : max(20, min(100, $latestScore - $n * random_int(0, 1) - random_int(0, 4)));
                 $run = Run::create([
-                    'backup_job_id' => $job->id, 'status' => $status, 'action' => 'scan', 'score' => $score,
+                    'scan_job_id' => $job->id, 'status' => $status, 'action' => 'scan', 'score' => $score,
                     'started_at' => $start, 'finished_at' => $status === 'failed' ? $start->copy()->addMinutes(1) : $start->copy()->addMinutes(random_int(2, 9)),
                     'current_engine' => null, 'progress_pct' => 100,
                     'log' => $status === 'failed' ? "starting scan\nagent unreachable" : "starting scan\nlynis... rkhunter... chkrootkit... clamav...\nscan complete, score {$score}",

@@ -117,20 +117,17 @@ fi
 "php${PHP_VER}" artisan config:cache
 "php${PHP_VER}" artisan route:cache
 
-log "Provisioning agent + kopia (so hosts can enroll to this Manager)"
-# These binaries are gitignored build artifacts, so a fresh clone lacks them.
-# Fetch the vendor agent (public /v1) + the official kopia release into public/downloads.
+log "Provisioning the scan agent (so hosts can enroll to this Manager)"
+# The agent is a gitignored build artifact, so a fresh clone lacks it. A release
+# tarball ships it bundled at public/downloads/agent; a bare clone can fetch the
+# vendor build from the public /v1 endpoint.
 mkdir -p public/downloads
 cp deploy/agent-install.sh public/downloads/agent-install.sh
-curl -fsSL "${AGENT_URL:-https://scriptgain.com/v1/agent}" -o public/downloads/agent \
-  || echo "!! agent download failed; place the agent binary at ${APP_DIR}/public/downloads/agent manually."
-KOPIA_VER="${KOPIA_VER:-0.23.1}"
-if curl -fsSL "https://github.com/kopia/kopia/releases/download/v${KOPIA_VER}/kopia-${KOPIA_VER}-linux-x64.tar.gz" -o /tmp/kopia.tgz; then
-  tar xzf /tmp/kopia.tgz -C /tmp && cp /tmp/kopia-*/kopia public/downloads/kopia && rm -rf /tmp/kopia.tgz /tmp/kopia-*-linux-x64
-else
-  echo "!! kopia download failed; place a kopia binary at ${APP_DIR}/public/downloads/kopia manually."
+if [ ! -f public/downloads/agent ]; then
+  curl -fsSL "${AGENT_URL:-https://scriptgain.com/v1/agent?product=guard}" -o public/downloads/agent \
+    || echo "!! agent download failed; place the agent binary at ${APP_DIR}/public/downloads/agent manually."
 fi
-chmod +x public/downloads/agent public/downloads/kopia 2>/dev/null || true
+chmod +x public/downloads/agent 2>/dev/null || true
 
 log "Permissions"
 chown -R www-data:www-data "$APP_DIR"

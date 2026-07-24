@@ -43,9 +43,9 @@
         ['overview',     'Overview',               'M4 6h16M4 12h16M4 18h7'],
         ['master',       'Install the Manager',    'M5 12h14M12 5v14'],
         ['agents',       'Enroll an Agent',        'M12 4v16m8-8H4'],
-        ['connectors',   'Backup Connectors',      'M13 10V3L4 14h7v7l9-11h-7z'],
-        ['repositories', 'Repositories',           'M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z'],
-        ['schedule',     'Scheduling & Retention', 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+        ['engines',      'Scan Engines',           'M13 10V3L4 14h7v7l9-11h-7z'],
+        ['findings',     'Findings & Remediation', 'M4 7v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H6a2 2 0 00-2 2z'],
+        ['schedule',     'Scheduling',             'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
         ['updates',      'Updates',                'M4 4v6h6M20 20v-6h-6M20 8A8 8 0 006 5M4 16a8 8 0 0014 3'],
         ['license',      'Licensing',              'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.7 5.7L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.6a1 1 0 01.3-.7l6-6A6 6 0 1121 9z'],
     ];
@@ -97,11 +97,11 @@
             <div class="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-white/10"></div>
             <div class="absolute -bottom-12 right-16 h-28 w-28 rounded-full bg-white/5"></div>
             <h1 class="relative text-3xl font-bold">{{ config('brand.name') }} Documentation</h1>
-            <p class="relative mt-2 max-w-2xl text-white/85">Self-hosted backup control plane: a Manager you install once, and lightweight agents you drop onto each host you want to protect. Snapshots are deduplicated, encrypted, and pruned automatically.</p>
+            <p class="relative mt-2 max-w-2xl text-white/85">Self-hosted security scanner: a Manager you install once, and lightweight agents you drop onto each host you want to protect. Every scan runs rootkit, malware, hardening, firewall, and package-update checks and reports findings you can remediate with one click.</p>
             <div class="relative mt-4 flex flex-wrap gap-2 text-xs">
                 <span class="rounded-full bg-white/15 px-2.5 py-1">Linux x86_64</span>
                 <span class="rounded-full bg-white/15 px-2.5 py-1">Ubuntu 22.04+ · Debian 12+</span>
-                <span class="rounded-full bg-white/15 px-2.5 py-1">kopia-backed</span>
+                <span class="rounded-full bg-white/15 px-2.5 py-1">agent-based</span>
             </div>
         </div>
 
@@ -121,44 +121,42 @@
 
         <div class="mt-8 space-y-6">
             {!! $open('overview', 'Overview', $sections[0][2]) !!}
-                <p>The <strong>Manager</strong> queues jobs and stores backups; it never connects to your hosts. <strong>Agents</strong> poll the Manager over outbound HTTPS and do the work — either backing up their own host (<em>agent</em> connector) or acting as a <em>gateway</em> that pulls a remote host over SSH/FTP (<em>agentless</em> connectors). Snapshots are written with a bundled <a href="https://kopia.io">kopia</a> into per-host repositories.</p>
+                <p>The <strong>Manager</strong> queues scan jobs and stores findings; it never connects to your hosts. <strong>Agents</strong> poll the Manager over outbound HTTPS, run the enabled scan engines on their host, and report findings plus a 0&ndash;100 hardening score. Fixable findings can be remediated on the next poll.</p>
                 <p>Supported OS: Linux x86_64 (Ubuntu 22.04+, Debian 12+).</p>
             {!! $close('The big picture') !!}
 
             {!! $open('master', 'Install the Manager', $sections[1][2]) !!}
                 <p>On a fresh Ubuntu 22.04+/Debian 12 server, clone the repo and run the installer. It provisions PHP, MariaDB, nginx, the app, a queue worker + scheduler, and (with <code>SSL=1</code>) a Let's Encrypt certificate.</p>
-                {!! $code("git clone https://github.com/scriptgain/backup-mgr.git\ncd backup-mgr\nsudo DOMAIN=backup.example.com SSL=1 EMAIL=you@example.com \\\n  LICENSE_KEY=XXXX-XXXX-XXXX-XXXX ./deploy/install-master.sh") !!}
-                <p>Point DNS at the server first so the certificate can be issued. After install, create your admin user and log in. A default <em>Local Director</em> and a <em>Local Backups</em> repository are provisioned automatically.</p>
+                {!! $code("git clone https://github.com/scriptgain/guard-mgr.git\ncd guard-mgr\nsudo DOMAIN=guard.example.com SSL=1 EMAIL=you@example.com \\\n  LICENSE_KEY=XXXX-XXXX-XXXX-XXXX ./deploy/install-master.sh") !!}
+                <p>Point DNS at the server first so the certificate can be issued. After install, create your admin user and log in. A default <em>Local Director</em> is provisioned automatically.</p>
             {!! $close('One-time setup') !!}
 
             {!! $open('agents', 'Enroll an Agent', $sections[2][2]) !!}
                 <p>In the Manager, add a Host (type <em>Agent</em>) to get a one-time enrollment token. Then, on the host you want to back up:</p>
                 {!! $code("curl -fsSL {$host}/downloads/agent-install.sh | sudo bash -s -- \\\n  {$host} <enroll-token>") !!}
-                <p>The installer downloads a static agent + kopia to <code>/opt/backup</code>, enrolls the host, and installs a <code>backup-agent</code> systemd service that polls for jobs. Check it with <code>systemctl status backup-agent</code>.</p>
+                <p>The installer downloads a static agent to <code>/opt/guard</code>, enrolls the host, and installs a <code>guard-agent</code> systemd service that polls for scan jobs. Check it with <code>systemctl status guard-agent</code>.</p>
             {!! $close('Per host you protect') !!}
 
-            {!! $open('connectors', 'Backup Connectors', $sections[3][2]) !!}
+            {!! $open('engines', 'Scan Engines', $sections[3][2]) !!}
+                <p>Each scan job runs one or more engines on the host. Enable the ones you need per job:</p>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">Agent</p><p class="mt-1 text-sm text-slate-600">Backs up its own host's files or databases (mysqldump / pg_dump).</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SSH / Rsync</p><p class="mt-1 text-sm text-slate-600">A gateway pulls a remote host's files over SSH (key or password). Back up one path, or several paths in one snapshot.</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">SFTP</p><p class="mt-1 text-sm text-slate-600">Pulled over SSH, same as rsync.</p></div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">FTP</p><p class="mt-1 text-sm text-slate-600">A gateway mirrors a remote FTP account — handy for shared hosting with FTP-only access.</p></div>
-                    <div class="rounded-xl border border-brand-200 bg-brand-50/60 p-4 sm:col-span-2"><p class="font-semibold text-slate-900">Multi-FTP</p><p class="mt-1 text-sm text-slate-600">One host, many FTP logins — ideal for a WHM/reseller server where you only have FTP to each cPanel account. Each login is pulled into <strong>its own folder</strong> in a single snapshot within the repository.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">Lynis</p><p class="mt-1 text-sm text-slate-600">System hardening audit — SSH config, kernel sysctls, missing security packages, and service posture.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">rkhunter / chkrootkit</p><p class="mt-1 text-sm text-slate-600">Rootkit, backdoor, and suspicious-file detection. Known false positives are auto-down-ranked.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">ClamAV / maldet</p><p class="mt-1 text-sm text-slate-600">Malware and web-shell scanning across the filesystem.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">UFW / fail2ban</p><p class="mt-1 text-sm text-slate-600">Firewall posture and brute-force-protection checks.</p></div>
+                    <div class="rounded-xl border border-slate-200 bg-white p-4"><p class="font-semibold text-slate-900">WordPress</p><p class="mt-1 text-sm text-slate-600">Core, plugin, and theme vulnerability checks for WordPress installs.</p></div>
+                    <div class="rounded-xl border border-brand-200 bg-brand-50/60 p-4"><p class="font-semibold text-slate-900">Package Updates</p><p class="mt-1 text-sm text-slate-600">Available security updates, kernel updates, and reboot-required flags.</p></div>
                 </div>
-                <p>For agentless hosts, set the host's connection type, address, and credentials; the gateway agent in that Director does the pulling. Gateway prerequisites: <code>rsync</code>, <code>wget</code> (FTP), and DB client tools where relevant.</p>
-            {!! $close('Push & pull models') !!}
+                <p>The agent apt-installs any missing scanners on first run. Enable engines per job under <strong>Scan Jobs</strong>.</p>
+            {!! $close('What each scan checks') !!}
 
-            {!! $open('repositories', 'Repositories', $sections[4][2]) !!}
-                <p>A repository is where snapshots land. Supported backends:</p>
-                <ul class="space-y-2 text-slate-600 list-disc list-inside">
-                    <li><strong>Filesystem</strong> — a path on the Manager/gateway (e.g. the default <code>/var/backups/backupmgr</code>). Best for centralized, on-box storage.</li>
-                    <li><strong>S3 / S3-compatible</strong> — Amazon S3, Backblaze B2, Wasabi, MinIO, or your own StorageMGR instance. Best for offsite copies.</li>
-                </ul>
-                <p>Repositories are encrypted by kopia with a per-repo password, and snapshots are deduplicated across every host that shares the repository.</p>
-            {!! $close('Where snapshots live') !!}
+            {!! $open('findings', 'Findings & Remediation', $sections[4][2]) !!}
+                <p>Every scan produces <strong>findings</strong> — each with a severity (critical &rarr; info), the engine that raised it, and a suggested fix. Known-benign scanner noise is automatically down-ranked so the list stays actionable, and a 0&ndash;100 hardening score summarizes each host.</p>
+                <p>Findings the engine can safely fix are marked <strong>fixable</strong>: click <em>Fix</em> and the agent applies it on its next poll — install a hardening package, apply security updates, harden an SSH directive, or set an rkhunter baseline. Risky fixes are flagged and never auto-applied.</p>
+            {!! $close('Findings drive one-click fixes') !!}
 
-            {!! $open('schedule', 'Scheduling &amp; Retention', $sections[5][2]) !!}
-                <p>Assign a job a schedule (prebuilt templates like <em>Daily 2 AM</em>, or a custom cron) and a retention policy (keep N daily/weekly/monthly). kopia prunes and runs maintenance automatically within the window you set under <strong>Settings → Maintenance</strong>.</p>
+            {!! $open('schedule', 'Scheduling', $sections[5][2]) !!}
+                <p>Give a scan job a schedule — prebuilt templates like <em>Daily Full Scan</em> or <em>Rootkit &amp; Firewall (6h)</em>, or a custom cron. The Manager queues due scans automatically; agents pick them up on their next poll.</p>
             {!! $close('Automation') !!}
 
             {!! $open('updates', 'Updates', $sections[6][2]) !!}
@@ -172,7 +170,7 @@
             <p id="noresults" class="hidden rounded-xl border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-slate-500">No sections match “<span id="noresults-q" class="font-medium text-slate-700"></span>”.</p>
         </div>
 
-        <footer class="mt-12 border-t border-slate-200 pt-6 text-sm text-slate-400">{{ config('brand.name') }} · self-hosted backup · v{{ $ver }}</footer>
+        <footer class="mt-12 border-t border-slate-200 pt-6 text-sm text-slate-400">{{ config('brand.name') }} · self-hosted security scanning · v{{ $ver }}</footer>
     </main>
 </div>
 

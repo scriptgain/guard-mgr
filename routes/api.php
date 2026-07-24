@@ -6,13 +6,8 @@ use App\Http\Controllers\Api\DirectorController;
 use App\Http\Controllers\Api\HostController;
 use App\Http\Controllers\Api\JobController;
 use App\Http\Controllers\Api\LocationController;
-use App\Http\Controllers\Api\RepositoryController;
-use App\Http\Controllers\Api\RestoreController;
-use App\Http\Controllers\Api\RetentionPolicyController;
 use App\Http\Controllers\Api\RunController;
 use App\Http\Controllers\Api\ScheduleTemplateController;
-use App\Http\Controllers\Api\SnapshotController;
-use App\Http\Controllers\Api\StorageDeviceController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -27,18 +22,12 @@ Route::prefix('v1')->name('api.')->middleware('api.token')->group(function () {
     Route::apiResource('locations', LocationController::class);
     Route::apiResource('directors', DirectorController::class);
     Route::apiResource('hosts', HostController::class);
-    Route::apiResource('storage-devices', StorageDeviceController::class);
-    Route::apiResource('repositories', RepositoryController::class);
 
     // Backups.
-    Route::apiResource('retention-policies', RetentionPolicyController::class);
     Route::apiResource('schedule-templates', ScheduleTemplateController::class);
     Route::apiResource('jobs', JobController::class);
     Route::post('jobs/{job}/run', [JobController::class, 'run']);
     Route::apiResource('runs', RunController::class)->only(['index', 'show']);
-    Route::apiResource('restores', RestoreController::class)->only(['index', 'show', 'store', 'destroy']);
-    Route::get('snapshots', [SnapshotController::class, 'index']);
-    Route::get('snapshots/{run}', [SnapshotController::class, 'show']);
 
     // Access & administration.
     Route::apiResource('users', UserController::class);

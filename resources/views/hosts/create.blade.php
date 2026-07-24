@@ -81,7 +81,7 @@
                 <template x-if="type === 'agent'">
                     <div class="space-y-4">
                         <x-alert type="info" title="Push model — the agent runs on the host">
-                            You install a lightweight agent here. It dials <strong>out</strong> to the Manager (no inbound ports), backs up locally, and <strong>pushes</strong> the encrypted snapshot to the repository you choose. Pick an <strong>S3 / StorageMGR</strong> repository to keep backups offsite &mdash; a filesystem repository would store them on this host itself.
+                            You install a lightweight agent here. It dials <strong>out</strong> to the Manager (no inbound ports), runs the enabled scan engines locally on its next poll, and reports findings back. Nothing is stored on the host itself.
                         </x-alert>
                         <div class="rounded-xl ring-1 ring-slate-200 bg-slate-50 p-4">
                             <p class="text-sm font-semibold text-slate-900">Install the agent in 3 steps</p>

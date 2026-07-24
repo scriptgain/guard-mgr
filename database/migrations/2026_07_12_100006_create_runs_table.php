@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('runs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('backup_job_id')->constrained('backup_jobs')->cascadeOnDelete();
+            $table->foreignId('scan_job_id')->constrained('scan_jobs')->cascadeOnDelete();
             $table->string('status')->default('queued'); // queued|running|success|warn|failed
             $table->timestamp('started_at')->nullable();
             $table->timestamp('finished_at')->nullable();

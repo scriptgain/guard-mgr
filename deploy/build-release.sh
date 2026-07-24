@@ -2,7 +2,7 @@
 #
 # Build a distributable BackupMGR release for the scriptgain.com download.
 # Produces  dist/backup-manager-<version>.zip  containing a clean source tree
-# (installer runs composer/npm on the target), the prebuilt agent + kopia
+# (installer runs composer/npm on the target), the prebuilt scan agent
 # binaries the Manager serves to hosts, and a VERSION stamp.
 #
 # Usage:   deploy/build-release.sh 1.2.0
@@ -34,19 +34,20 @@ rsync -a \
   --exclude='agent/bin/*' \
   ./ "$STAGE/"
 
-echo "==> Bundling agent + kopia binaries"
-mkdir -p "$STAGE/agent/bin"
-if [ -f agent/bin/agent ] && [ -f agent/bin/kopia ]; then
-  cp agent/bin/agent agent/bin/kopia "$STAGE/agent/bin/"
-  chmod +x "$STAGE/agent/bin/agent" "$STAGE/agent/bin/kopia"
+echo "==> Bundling the scan agent binary"
+mkdir -p "$STAGE/public/downloads"
+if [ -f agent/bin/guard-agent ]; then
+  cp agent/bin/guard-agent "$STAGE/public/downloads/agent"
+  cp deploy/agent-install.sh "$STAGE/public/downloads/agent-install.sh"
+  chmod +x "$STAGE/public/downloads/agent"
 else
-  echo "!! agent/bin/agent or kopia missing — build the agent first (see deploy/local/fetch-kopia.sh + go build)."; exit 1
+  echo "!! agent/bin/guard-agent missing — build the agent first (cd agent && ./build.sh)."; exit 1
 fi
 
 echo "==> Writing VERSION + manifest"
 printf '%s\n' "$VERSION" > "$STAGE/VERSION"
 cat > "$STAGE/RELEASE.txt" <<TXT
-BackupMGR ${VERSION}
+GuardMGR ${VERSION}
 Self-hosted backup platform by scriptgain.com
 
 Install (fresh Debian/Ubuntu server, as root):

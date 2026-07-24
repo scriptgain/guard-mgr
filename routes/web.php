@@ -11,13 +11,9 @@ use App\Http\Controllers\HostController;
 use App\Http\Controllers\JobController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\RepositoryController;
-use App\Http\Controllers\RestoreController;
 use App\Http\Controllers\RunController;
 use App\Http\Controllers\SetupController;
 use App\Http\Controllers\ScheduleTemplateController;
-use App\Http\Controllers\SnapshotController;
-use App\Http\Controllers\StorageDeviceController;
 use App\Http\Controllers\FirewallController;
 use App\Http\Controllers\HostSslController;
 use App\Http\Controllers\GeneralSettingsController;
@@ -72,9 +68,6 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::resource('directors', DirectorController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::get('directors/{director}/hosts/create', [HostController::class, 'create'])->name('hosts.create');
     Route::post('directors/{director}/hosts', [HostController::class, 'store'])->name('hosts.store');
-    Route::post('directors/{director}/storage', [StorageDeviceController::class, 'store'])->name('directors.storage.store');
-    Route::post('directors/{director}/storage/detect', [StorageDeviceController::class, 'detect'])->name('directors.storage.detect');
-    Route::delete('storage/{storageDevice}', [StorageDeviceController::class, 'destroy'])->name('storage.destroy');
     Route::get('hosts', [HostController::class, 'index'])->name('hosts.index');
     Route::get('hosts/{host}/edit', [HostController::class, 'edit'])->name('hosts.edit');
     Route::get('hosts/{host}/browse', [HostController::class, 'browse'])->name('hosts.browse');
@@ -82,14 +75,12 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::get('hosts/{host}', [HostController::class, 'show'])->name('hosts.show');
     Route::put('hosts/{host}', [HostController::class, 'update'])->name('hosts.update');
     Route::put('hosts/{host}/ftp-account/{index}', [HostController::class, 'updateFtpAccount'])->name('hosts.ftpaccount.update');
-    Route::post('hosts/{host}/backup', [HostController::class, 'backup'])->name('hosts.backup');
-    Route::post('hosts/{host}/quick-backup', [HostController::class, 'quickBackup'])->name('hosts.quickBackup');
+    Route::post('hosts/{host}/scan', [HostController::class, 'scan'])->name('hosts.scan');
     Route::post('hosts/{host}/test-connection', [HostController::class, 'testConnection'])->name('hosts.test');
     Route::post('hosts/{host}/enroll', [HostController::class, 'enroll'])->name('hosts.enroll');
     Route::delete('hosts/{host}', [HostController::class, 'destroy'])->name('hosts.destroy');
 
     // Repositories + Jobs
-    Route::resource('repositories', RepositoryController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::resource('jobs', JobController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::post('jobs/{job}/run', [JobController::class, 'run'])->name('jobs.run');
     Route::get('runs', [RunController::class, 'index'])->name('runs.index');
@@ -161,7 +152,6 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('settings/host/upload', [HostSslController::class, 'upload'])->name('settings.host.upload');
     Route::post('settings/host/self-signed', [HostSslController::class, 'selfSigned'])->name('settings.host.self-signed');
 
-    // Maintenance (pruning + kopia maintenance windows).
     Route::get('settings/integrations', [\App\Http\Controllers\IntegrationController::class, 'edit'])->name('settings.integrations.edit');
     Route::put('settings/integrations', [\App\Http\Controllers\IntegrationController::class, 'update'])->name('settings.integrations.update');
     Route::post('settings/integrations/test', [\App\Http\Controllers\IntegrationController::class, 'test'])->name('settings.integrations.test');
@@ -178,19 +168,10 @@ Route::middleware(['auth', 'security.policy'])->group(function () {
     Route::post('settings/updates/apply', [\App\Http\Controllers\UpdateController::class, 'apply'])->name('settings.updates.apply');
     Route::post('settings/updates/auto', [\App\Http\Controllers\UpdateController::class, 'toggleAuto'])->name('settings.updates.auto');
 
-    Route::get('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'edit'])->name('settings.maintenance.edit');
-    Route::put('settings/maintenance', [\App\Http\Controllers\MaintenanceController::class, 'update'])->name('settings.maintenance.update');
 
     // Storage overview across directors.
-    Route::get('settings/storage', [StorageDeviceController::class, 'index'])->name('settings.storage.index');
 
     // Placeholders — wired next.
-    Route::get('/snapshots', [SnapshotController::class, 'index'])->name('snapshots.index');
-    Route::get('/snapshots/{run}/browse', [SnapshotController::class, 'browse'])->name('snapshots.browse');
-    Route::get('/restores', [RestoreController::class, 'index'])->name('restores.index');
-    Route::delete('/restores/bulk', [RestoreController::class, 'bulkDestroy'])->name('restores.bulk-destroy');
-    Route::get('/runs/{run}/restore', [RestoreController::class, 'create'])->name('restores.create');
-    Route::post('/restores', [RestoreController::class, 'store'])->name('restores.store');
 
     Route::view('/ui', 'styleguide')->name('styleguide');
 });

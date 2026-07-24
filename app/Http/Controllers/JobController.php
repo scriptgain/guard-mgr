@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Host;
 use App\Models\Run;
 use Illuminate\Http\Request;
@@ -55,14 +55,14 @@ class JobController extends Controller
 
     public function index()
     {
-        $jobs = BackupJob::where('ad_hoc', false)
+        $jobs = ScanJob::where('ad_hoc', false)
             ->whereHas('host', fn ($q) => $q->visibleTo(auth()->user()))
             ->with('host.director')->latest()->get();
 
         return view('jobs.index', compact('jobs'));
     }
 
-    private function guard(BackupJob $job): void
+    private function guard(ScanJob $job): void
     {
         abort_unless($job->host?->isVisibleTo(auth()->user()), 403);
     }
@@ -98,7 +98,7 @@ class JobController extends Controller
         $host = Host::findOrFail($data['host_id']);
         abort_unless($host->isVisibleTo(auth()->user()), 403);
 
-        $job = BackupJob::create([
+        $job = ScanJob::create([
             'host_id' => $host->id,
             'name' => $data['name'],
             'type' => 'scan',
@@ -111,7 +111,7 @@ class JobController extends Controller
         return redirect()->route('jobs.show', $job)->with('status', "Scan Job \"{$job->name}\" created.");
     }
 
-    public function show(BackupJob $job)
+    public function show(ScanJob $job)
     {
         $job->load('host.director', 'runs');
         $this->guard($job);
@@ -119,7 +119,7 @@ class JobController extends Controller
         return view('jobs.show', compact('job'));
     }
 
-    public function edit(BackupJob $job)
+    public function edit(ScanJob $job)
     {
         $job->load('host.director');
         $this->guard($job);
@@ -131,7 +131,7 @@ class JobController extends Controller
         return view('jobs.edit', compact('job', 'hosts', 'scheduleTemplates', 'engines'));
     }
 
-    public function update(Request $request, BackupJob $job)
+    public function update(Request $request, ScanJob $job)
     {
         $job->loadMissing('host.director');
         $this->guard($job);
@@ -153,7 +153,7 @@ class JobController extends Controller
         return redirect()->route('jobs.show', $job)->with('status', "Scan Job \"{$job->name}\" updated.");
     }
 
-    public function destroy(BackupJob $job)
+    public function destroy(ScanJob $job)
     {
         $job->loadMissing('host.director');
         $this->guard($job);
@@ -164,11 +164,11 @@ class JobController extends Controller
     }
 
     /** Queue a scan now; the agent picks it up on its next poll. */
-    public function run(BackupJob $job)
+    public function run(ScanJob $job)
     {
         $job->loadMissing('host.director');
         $this->guard($job);
-        Run::create(['backup_job_id' => $job->id, 'status' => 'queued']);
+        Run::create(['scan_job_id' => $job->id, 'status' => 'queued']);
         \App\Models\AuditLog::record('scan', 'Scan queued for job "'.$job->name.'"', $job);
 
         return redirect()->route('jobs.show', $job)->with('status', 'Scan queued. It will run on the next agent poll.');

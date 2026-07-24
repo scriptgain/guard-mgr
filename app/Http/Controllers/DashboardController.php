@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Director;
 use App\Models\Host;
 use App\Models\Run;
@@ -17,7 +17,7 @@ class DashboardController extends Controller
         $stats = [
             'directors' => Director::visibleTo($user)->count(),
             'hosts' => Host::whereHas('director', $visible)->count(),
-            'jobs' => BackupJob::where('enabled', true)->whereHas('host.director', $visible)->count(),
+            'jobs' => ScanJob::where('enabled', true)->whereHas('host.director', $visible)->count(),
             'scans' => Run::whereHas('job.host.director', $visible)->count(),
         ];
 

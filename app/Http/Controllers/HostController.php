@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Director;
 use App\Models\Host;
-use App\Models\Repository;
 use App\Models\Run;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -45,16 +44,8 @@ class HostController extends Controller
         $this->guardDirector($director);
         $scheduleTemplates = \App\Models\ScheduleTemplate::orderBy('name')->get();
         $owners = $this->assignableOwners();
-        $repositories = $this->repositoriesFor($director);
 
-        return view('hosts.create', compact('director', 'scheduleTemplates', 'owners', 'repositories'));
-    }
-
-    /** Repositories usable by hosts under this director: global ones + its own. */
-    private function repositoriesFor(Director $director)
-    {
-        return Repository::where(fn ($q) => $q->whereNull('director_id')->orWhere('director_id', $director->id))
-            ->orderBy('name')->get();
+        return view('hosts.create', compact('director', 'scheduleTemplates', 'owners'));
     }
 
     /** Validation rules shared by store() and update(). */
@@ -65,7 +56,6 @@ class HostController extends Controller
             'connection_type' => ['required', Rule::in(['agent', 'ssh', 'sftp', 'ftp', 'rsync', 'multiftp', 's3', 'ingest'])],
             'ingest_protocol' => ['nullable', Rule::in(['sftp', 'ftp', 's3'])],
             'ingest_folder' => ['nullable', 'string', 'max:1024'],
-            'repository_id' => ['nullable', Rule::exists('repositories', 'id')],
             'hostname' => ['nullable', 'string', 'max:255'],
             'ip_address' => ['nullable', 'string', 'max:45'],
             'port' => ['nullable', 'integer', 'min:1', 'max:65535'],
@@ -147,7 +137,6 @@ class HostController extends Controller
         // Ingest (receive) host: default the protocol + drop folder, auto-name a
         // username, and generate a strong password when the operator left it
         // blank (shown once on the host page to paste into cPanel/WHM).
-        $targetRepoId = $data['repository_id'] ?? null;
         unset($data['repository_id']);
         if ($data['connection_type'] === 'ingest') {
             $data['ingest_protocol'] = $data['ingest_protocol'] ?? 'sftp';
@@ -169,71 +158,9 @@ class HostController extends Controller
 
         $host = $director->hosts()->create($data);
 
-        // Auto-provision a default filesystem repository for this host so jobs
-        // never hit an empty repository picker.
-        $repo = \App\Models\Repository::create([
-            'director_id' => $director->id,
-            'name' => $host->name . ' Repository',
-            'backend' => 'filesystem',
-            'config' => ['path' => rtrim(config('backup.repo_base'), '/') . '/' . Str::slug($host->name)],
-            'compression' => 'zstd',
-            'password' => Str::random(40),
-            'status' => 'active',
-        ]);
-
-        // A multi-FTP host's accounts *are* its backup definition, so create the
-        // job up front — the user only needs to set/confirm a schedule. Each
-        // account lands in its own folder inside this one repository.
-        if ($host->connection_type === 'multiftp') {
-            $tpl = $host->default_schedule_template_id
-                ? \App\Models\ScheduleTemplate::find($host->default_schedule_template_id)
-                : null;
-            $host->jobs()->create([
-                'repository_id' => $repo->id,
-                'retention_policy_id' => \App\Models\RetentionPolicy::query()->value('id'),
-                'name' => $host->name . ' — FTP Accounts',
-                'type' => 'multiftp',
-                'connector' => 'multiftp',
-                'source' => [],
-                'schedule_cron' => $tpl?->cron,
-                'enabled' => true,
-                'ad_hoc' => false,
-                'prune_after_backup' => false,
-            ]);
-
-            return redirect()
-                ->route('hosts.show', $host)
-                ->with('status', "Host \"{$host->name}\" added with " . count($host->ftp_accounts) . " FTP account(s) and a backup job. Set its schedule below.");
-        }
-
-        // An ingest host's drop folder *is* its backup definition, so create the
-        // snapshot job up front (into the chosen repository, or the default one).
-        if ($host->connection_type === 'ingest') {
-            $ingestRepo = $targetRepoId ? (Repository::find($targetRepoId) ?: $repo) : $repo;
-            $tpl = $host->default_schedule_template_id
-                ? \App\Models\ScheduleTemplate::find($host->default_schedule_template_id)
-                : null;
-            $host->jobs()->create([
-                'repository_id' => $ingestRepo->id,
-                'retention_policy_id' => \App\Models\RetentionPolicy::query()->value('id'),
-                'name' => $host->name . ' — Ingest Snapshot',
-                'type' => 'files',
-                'connector' => 'ingest',
-                'source' => ['root' => $host->ingest_folder, 'excludes' => []],
-                'schedule_cron' => $tpl?->cron,
-                'enabled' => true,
-                'ad_hoc' => false,
-                'prune_after_backup' => false,
-            ]);
-
-            return redirect()
-                ->route('hosts.show', $host)
-                ->with('status', "Ingest connection \"{$host->name}\" created. Point your cPanel/WHM SFTP destination at the details below; pushed files are snapshotted on the schedule.");
-        }
-
         return redirect()
-            ->route('directors.show', $director)
-            ->with('status', "Host \"{$host->name}\" added with a default repository.");
+            ->route('hosts.show', $host)
+            ->with('status', "Server \"{$host->name}\" added. Install the agent on it (see the enrollment command), then create a scan job.");
     }
 
     public function show(Host $host)
@@ -242,13 +169,7 @@ class HostController extends Controller
         // Hide one-off Quick Backup jobs from the host's job list.
         $host->load(['director:id,name', 'jobs' => fn ($q) => $q->where('ad_hoc', false)]);
 
-        // Repositories usable for a Quick Backup: global ones + this director's.
-        $repositories = Repository::where(fn ($q) => $q->whereNull('director_id')->orWhere('director_id', $host->director_id))
-            ->orderBy('name')->get();
-        $defaultRepoId = optional($repositories->firstWhere('name', $host->name . ' Repository'))->id
-            ?? optional($repositories->first())->id;
-
-        return view('hosts.show', compact('host', 'repositories', 'defaultRepoId'));
+        return view('hosts.show', compact('host'));
     }
 
     public function edit(Host $host)
@@ -438,57 +359,23 @@ class HostController extends Controller
     }
 
     /** Queue a run for every enabled (non-ad-hoc) job on this host. */
-    public function backup(Host $host)
+    public function scan(Host $host)
     {
         $this->guard($host);
         $jobs = $host->jobs()->where('enabled', true)->where('ad_hoc', false)->get();
         if ($jobs->isEmpty()) {
-            return back()->with('status', 'This host has no enabled jobs yet. Create a backup job, or use Quick Backup for a one-time run.');
+            return back()->with('status', 'This host has no enabled scan jobs yet. Create a scan job first.');
         }
         $queued = 0;
         foreach ($jobs as $job) {
-            $busy = Run::where('backup_job_id', $job->id)->whereIn('status', ['queued', 'running'])->exists();
+            $busy = Run::where('scan_job_id', $job->id)->whereIn('status', ['queued', 'running'])->exists();
             if (! $busy) {
-                Run::create(['backup_job_id' => $job->id, 'status' => 'queued']);
+                Run::create(['scan_job_id' => $job->id, 'status' => 'queued']);
                 $queued++;
             }
         }
 
-        return back()->with('status', "Backup queued for {$queued} job(s) on {$host->name}. Runs on the next agent poll.");
-    }
-
-    /**
-     * One-time "Quick Backup": create a hidden ad-hoc job for a single path and
-     * queue it immediately. Verifies the connection + pipeline end to end without
-     * committing to a saved, scheduled job. Never re-runs (no cron, hidden from
-     * the jobs list, skipped by "Back Up Now").
-     */
-    public function quickBackup(Request $request, Host $host)
-    {
-        $this->guard($host);
-        $data = $request->validate([
-            'path' => ['required', 'string', 'max:1024'],
-            'repository_id' => ['required', Rule::exists('repositories', 'id')],
-        ]);
-
-        $repo = Repository::findOrFail($data['repository_id']);
-        abort_unless(is_null($repo->director_id) || $repo->director_id === $host->director_id, 403);
-
-        $job = $host->jobs()->create([
-            'repository_id' => $repo->id,
-            'name' => 'Quick Backup ' . now()->format('Y-m-d H:i'),
-            'type' => 'files',
-            'connector' => $host->connection_type,
-            'source' => ['root' => $data['path'], 'excludes' => []],
-            'schedule_cron' => null,
-            'enabled' => true,
-            'ad_hoc' => true,
-            'prune_after_backup' => false,
-        ]);
-
-        Run::create(['backup_job_id' => $job->id, 'status' => 'queued']);
-
-        return back()->with('status', "Quick backup queued for {$host->name} ({$data['path']}). It runs on the next agent poll — its snapshot appears under Snapshots when done.");
+        return back()->with('status', "Scan queued for {$queued} job(s) on {$host->name}. Runs on the next agent poll.");
     }
 
     /**

@@ -3,7 +3,7 @@
     $g = fn ($k) => \App\Models\Setting::get($k);
 @endphp
 <x-layouts.app title="Notifications">
-    <x-page-header title="Notifications" icon="bell" subtitle="Get emailed when a backup fails.">
+    <x-page-header title="Notifications" icon="bell" subtitle="Get emailed when a scan fails.">
         <x-slot:actions>
             <x-button variant="secondary" icon="settings" href="{{ route('settings.index') }}">Settings</x-button>
         </x-slot:actions>
@@ -15,7 +15,7 @@
 
         <x-card title="Alerts">
             <div class="space-y-5">
-                <x-toggle name="notifications_enabled" :checked="$enabled" label="Email on Backup Failure" description="Send an email whenever a run fails." />
+                <x-toggle name="notifications_enabled" :checked="$enabled" label="Email on Scan Failure" description="Send an email whenever a run fails." />
                 <x-field label="Notify Email" for="notify_email" hint="Where alerts are sent." :error="$errors->first('notify_email')">
                     <x-input id="notify_email" name="notify_email" type="email" :value="$g('notify_email')" placeholder="you@example.com" />
                 </x-field>
@@ -37,7 +37,7 @@
                     <x-input id="smtp_password" name="smtp_password" type="password" autocomplete="new-password" data-lpignore="true" />
                 </x-field>
                 <x-field label="From Address" for="mail_from" :error="$errors->first('mail_from')">
-                    <x-input id="mail_from" name="mail_from" type="email" :value="$g('mail_from')" placeholder="backups@yourdomain.com" />
+                    <x-input id="mail_from" name="mail_from" type="email" :value="$g('mail_from')" placeholder="scans@yourdomain.com" />
                 </x-field>
             </div>
         </x-card>

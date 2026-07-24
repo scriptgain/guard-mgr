@@ -48,11 +48,11 @@
                     </div>
                 </x-card>
 
-                {{-- Backup defaults --}}
-                <x-card title="Backup Defaults" subtitle="Prefilled when a new repository or job is created.">
+                {{-- Scan + agent defaults --}}
+                <x-card title="Scan Defaults" subtitle="Prefilled when a new scan job is created.">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <x-field label="Default Compression" for="default_compression" :error="$errors->first('default_compression')"
-                            hint="Applied to new repositories.">
+                            hint="Applied to new scan jobs.">
                             <x-select id="default_compression" name="default_compression">
                                 <option value="zstd" @selected($v['default_compression'] === 'zstd')>Zstandard (recommended)</option>
                                 <option value="s2" @selected($v['default_compression'] === 's2')>S2 (fastest)</option>
@@ -101,7 +101,7 @@
                             </x-field>
                             <x-field label="Agent Download URL" for="agent_download_url" :error="$errors->first('agent_download_url')"
                                 hint="HTTPS URL the agent fetches the new binary from.">
-                                <x-input id="agent_download_url" name="agent_download_url" :value="$v['agent_download_url']" placeholder="https://backup.example.com/agent/backup-agent" />
+                                <x-input id="agent_download_url" name="agent_download_url" :value="$v['agent_download_url']" placeholder="https://guard.example.com/downloads/agent" />
                             </x-field>
                             <x-field label="Agent Binary SHA-256" for="agent_download_sha256" :error="$errors->first('agent_download_sha256')"
                                 hint="64-char hex digest of the new binary (output of scriptgain `agent:sign`).">

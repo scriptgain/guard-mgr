@@ -11,7 +11,7 @@ class RunController extends Controller
     public function index(Request $request)
     {
         return Run::whereHas('job.host.director', fn ($q) => $q->visibleTo(auth()->user()))
-            ->when($request->integer('backup_job_id'), fn ($q, $id) => $q->where('backup_job_id', $id))
+            ->when($request->integer('scan_job_id'), fn ($q, $id) => $q->where('scan_job_id', $id))
             ->when($request->string('status')->toString(), fn ($q, $s) => $q->where('status', $s))
             ->with('job:id,name,host_id')
             ->latest()

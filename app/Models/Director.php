@@ -60,13 +60,4 @@ class Director extends Model
         return $this->hasMany(Host::class);
     }
 
-    public function storageDevices(): HasMany
-    {
-        return $this->hasMany(StorageDevice::class);
-    }
-
-    public function repositories(): HasMany
-    {
-        return $this->hasMany(Repository::class);
-    }
 }

@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\JobController;
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Host;
 use Database\Seeders\ScheduleTemplateSeeder;
 use Illuminate\Database\Migrations\Migration;
@@ -26,14 +26,14 @@ return new class extends Migration
 
         // Default recurring scan for the local Server, if present and not already
         // wired. Uses the Daily Full Scan cadence (03:00) with every engine.
-        if (! Schema::hasTable('hosts') || ! Schema::hasTable('backup_jobs')) {
+        if (! Schema::hasTable('hosts') || ! Schema::hasTable('scan_jobs')) {
             return;
         }
         $host = Host::where('is_local', true)->orWhere('id', 1)->first();
         if (! $host) {
             return;
         }
-        $exists = BackupJob::where('host_id', $host->id)
+        $exists = ScanJob::where('host_id', $host->id)
             ->where('ad_hoc', false)
             ->whereNotNull('schedule_cron')
             ->exists();
@@ -41,7 +41,7 @@ return new class extends Migration
             return;
         }
 
-        BackupJob::create([
+        ScanJob::create([
             'host_id' => $host->id,
             'name' => 'Daily Full Scan',
             'type' => 'scan',

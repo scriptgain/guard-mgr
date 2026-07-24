@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\BackupJob;
+use App\Models\ScanJob;
 use App\Models\Run;
 use Cron\CronExpression;
 use Illuminate\Console\Command;
@@ -15,7 +15,7 @@ class DispatchDueJobs extends Command
 
     public function handle(): int
     {
-        $jobs = BackupJob::where('enabled', true)->whereNotNull('schedule_cron')
+        $jobs = ScanJob::where('enabled', true)->whereNotNull('schedule_cron')
             ->with('host:id,director_id')->get();
         $queued = 0;
 
@@ -31,7 +31,7 @@ class DispatchDueJobs extends Command
                 continue;
             }
             // Don't pile up: skip if a run is already queued or running.
-            $busy = Run::where('backup_job_id', $job->id)
+            $busy = Run::where('scan_job_id', $job->id)
                 ->whereIn('status', ['queued', 'running'])
                 ->exists();
             if ($busy) {
@@ -43,7 +43,7 @@ class DispatchDueJobs extends Command
                 $this->line("Director {$dir} at concurrency cap ({$maxConcurrent}); deferring job {$job->id}.");
                 continue;
             }
-            Run::create(['backup_job_id' => $job->id, 'status' => 'queued']);
+            Run::create(['scan_job_id' => $job->id, 'status' => 'queued']);
             if ($dir !== null) {
                 $activePerDirector[$dir] = ($activePerDirector[$dir] ?? 0) + 1;
             }

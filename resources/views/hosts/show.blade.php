@@ -15,7 +15,7 @@
         <x-slot:actions>
             <x-badge :color="$statusColor[$host->effective_status] ?? 'neutral'" dot>{{ ucfirst($host->effective_status) }}</x-badge>
             <x-button variant="secondary" icon="edit" href="{{ route('hosts.edit', $host) }}">Edit</x-button>
-            <x-confirm-action name="scan-host-{{ $host->id }}" :action="route('hosts.backup', $host)"
+            <x-confirm-action name="scan-host-{{ $host->id }}" :action="route('hosts.scan', $host)"
                 title="Run Scan Now?" message="This queues a scan for every enabled scan job on this Server. The agent picks it up on its next poll." confirm="Run Scan Now" confirmIcon="play">
                 <x-button icon="play">Run Scan Now</x-button>
             </x-confirm-action>

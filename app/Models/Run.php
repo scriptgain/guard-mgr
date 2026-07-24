@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Run extends Model
 {
     protected $fillable = [
-        'backup_job_id', 'status', 'score', 'started_at', 'finished_at',
+        'scan_job_id', 'status', 'score', 'started_at', 'finished_at',
         'bytes_in', 'bytes_uploaded', 'files', 'snapshot_id', 'log', 'error', 'file_index',
         'action', 'params', 'progress_pct', 'current_engine', 'progress_log',
     ];
@@ -34,7 +34,7 @@ class Run extends Model
 
     public function job(): BelongsTo
     {
-        return $this->belongsTo(BackupJob::class, 'backup_job_id');
+        return $this->belongsTo(ScanJob::class, 'scan_job_id');
     }
 
     /** Findings produced by this scan (Phase 2 populates these). */
