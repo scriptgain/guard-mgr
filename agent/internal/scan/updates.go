@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // runUpdates reports the host's OS/package update posture: how many package
 // updates are available (and how many are security), whether a kernel update is
 // pending, and whether a reboot is required (either the distro's reboot-required
-// flag or a running-vs-installed kernel mismatch). It is READ-ONLY — it never
+// flag or a running-vs-installed kernel mismatch). It is READ-ONLY: it never
 // installs anything; the run_updates action does that.
 func runUpdates(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	u := DetectUpdates(ctx, logf)
@@ -84,7 +84,7 @@ func DetectUpdates(ctx context.Context, logf Logf) *api.Updates {
 func detectApt(ctx context.Context, logf Logf) *api.Updates {
 	u := &api.Updates{}
 
-	// Refresh package lists (read-only w.r.t. installed packages). Best effort —
+	// Refresh package lists (read-only w.r.t. installed packages). Best effort :
 	// a stale-but-present list still yields a useful count if this fails.
 	logf("updates: refreshing apt package lists")
 	_, _ = runCmd(ctx, 3*time.Minute, "apt-get", "update", "-qq")

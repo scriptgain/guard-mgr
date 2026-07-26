@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // lynisReport is where Lynis writes its machine-readable results.
@@ -103,7 +103,7 @@ func parseLynisEntry(val string) (code, title, detail string) {
 			extras = append(extras, c)
 		}
 	}
-	detail = strings.Join(extras, " — ")
+	detail = strings.Join(extras, "; ")
 	return code, title, detail
 }
 

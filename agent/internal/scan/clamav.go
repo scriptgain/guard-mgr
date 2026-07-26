@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // runClamAV runs an on-disk malware scan of the host's web/data directories.
@@ -17,7 +17,7 @@ import (
 // (a first `freshclam` pulls ~200MB and can take a few minutes), then runs
 // `clamscan -ri --no-summary` recursively over the bounded set of web/data dirs
 // from malwareScanDirs(). Every "<file>: <Signature> FOUND" line becomes a
-// high-severity finding carrying the path + signature. Detect-only — quarantine
+// high-severity finding carrying the path + signature. Detect-only: quarantine
 // / removal is Phase 5.
 func runClamAV(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	bin, err := ensureInstalled(ctx, "clamscan", "clamav", logf)
@@ -28,7 +28,7 @@ func runClamAV(ctx context.Context, _ Options, logf Logf) (engineResult, error) 
 	_, _ = ensureInstalled(ctx, "freshclam", "clamav-freshclam", logf)
 
 	if err := ensureClamDB(ctx, logf); err != nil {
-		// No DB means clamscan cannot run meaningfully — surface as info, not fail.
+		// No DB means clamscan cannot run meaningfully: surface as info, not fail.
 		return engineResult{
 			log: "[clamav] " + err.Error(),
 			findings: []api.Finding{{
@@ -57,7 +57,7 @@ func runClamAV(ctx context.Context, _ Options, logf Logf) (engineResult, error) 
 	//   - --max-filesize=25M / --max-scansize=100M skip the large media/archives
 	//     that dominate scan time (web-shells are small text files).
 	//   - exclude dependency/VCS/cache trees (package-manager owned, huge file
-	//     counts, no real coverage — malware lands in uploads/webroots).
+	//     counts, no real coverage: malware lands in uploads/webroots).
 	args := []string{"-ri", "--no-summary", "--max-filesize=25M", "--max-scansize=100M",
 		"--exclude-dir=(^|/)(\\.git|node_modules|vendor|storage/framework|bootstrap/cache|cache)($|/)"}
 	args = append(args, dirs...)
@@ -88,7 +88,7 @@ func runClamAV(ctx context.Context, _ Options, logf Logf) (engineResult, error) 
 		})
 	}
 	if len(res.findings) == 0 {
-		res.log = "[clamav] scanned " + strings.Join(dirs, ", ") + " — no malware found"
+		res.log = "[clamav] scanned " + strings.Join(dirs, ", ") + ", no malware found"
 		res.findings = append(res.findings, api.Finding{
 			Severity: "info", Engine: "clamav", Code: "clamav-clean",
 			Title:  "ClamAV Scan Clean",

@@ -4,7 +4,7 @@
 #
 # CGO_ENABLED=0 removes the glibc dependency and uses Go's pure DNS resolver, so
 # the binary runs on any Linux x86_64 regardless of the build host's glibc. Do
-# not drop CGO_ENABLED=0 — a dynamic build ties the binary to the build box.
+# not drop CGO_ENABLED=0: a dynamic build ties the binary to the build box.
 #
 #   ./build.sh 0.2.0
 #

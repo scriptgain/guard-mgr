@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // chkFPSingle are chkrootkit's well-known single-line false positives on modern
 // kernels/containers. Matched as lowercase substrings. These stay VISIBLE and
-// dismissable but are down-ranked to medium with context — never auto-hidden
+// dismissable but are down-ranked to medium with context: never auto-hidden
 // (we must never suppress a possible-malware detection) and never left at high
 // without the operator confirming against a second scanner.
 var chkFPSingle = []string{"rh-sharpe", "sharpe", "xor.ddos", "bpfdoor", "suckit", "promisc"}
@@ -19,11 +19,11 @@ var chkFPSingle = []string{"rh-sharpe", "sharpe", "xor.ddos", "bpfdoor", "suckit
 const chkFPRemediation = "chkrootkit reports this as a false positive on modern kernels and containers. Confirm against rkhunter and ClamAV/maldet before treating the host as compromised; dismiss if unconfirmed."
 
 // runChkrootkit installs and runs chkrootkit as a second-opinion rootkit scanner
-// alongside rkhunter (`chkrootkit -q` — quiet, only prints lines of interest).
+// alongside rkhunter (`chkrootkit -q`: quiet, only prints lines of interest).
 //
 // chkrootkit emits two shapes of output:
 //   - single "INFECTED" / "Possible ... installed" / "Warning:" lines, and
-//   - MULTI-LINE blocks — a header like "WARNING: The following suspicious PHP
+//   - MULTI-LINE blocks: a header like "WARNING: The following suspicious PHP
 //     files were found:" or "WARNING: Output from ifpromisc:" followed by the
 //     offending paths/output on the NEXT lines.
 //
@@ -75,12 +75,12 @@ func runChkrootkit(ctx context.Context, _ Options, logf Logf) (engineResult, err
 				continue
 			}
 			// chkrootkit's "suspicious PHP files" check is pure false-positive
-			// noise on any PHP/WordPress/Laravel host — it flags legitimate app
+			// noise on any PHP/WordPress/Laravel host: it flags legitimate app
 			// code. Real PHP malware is covered by ClamAV, maldet, and the
 			// WordPress engine, so we consume its lines (so they don't leak into
 			// the next block) but emit NOTHING.
 			if strings.Contains(strings.ToLower(subject), "php") {
-				logf("chkrootkit: suppressing crude PHP-files check (%d paths) — covered by ClamAV/maldet/WordPress", len(content))
+				logf("chkrootkit: suppressing crude PHP-files check (%d paths), covered by ClamAV/maldet/WordPress", len(content))
 				continue
 			}
 			sev, code, title, rem := chkBlockMeta(subject, kind, len(content))
@@ -128,7 +128,7 @@ func runChkrootkit(ctx context.Context, _ Options, logf Logf) (engineResult, err
 	}
 
 	if len(res.findings) == 0 {
-		res.log = "[chkrootkit] no infections found — clean"
+		res.log = "[chkrootkit] no infections found, clean"
 	}
 	return res, nil
 }

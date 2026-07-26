@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // runRkhunter runs `rkhunter --check --sk --nocolors --rwo` (report-warnings-
@@ -51,7 +51,7 @@ func runRkhunter(ctx context.Context, _ Options, logf Logf) (engineResult, error
 		})
 	}
 	if len(res.findings) == 0 {
-		res.log = "[rkhunter] no warnings — system clean"
+		res.log = "[rkhunter] no warnings, system clean"
 	}
 	return res, nil
 }

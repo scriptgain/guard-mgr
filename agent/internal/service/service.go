@@ -1,6 +1,6 @@
 // Package service installs the GuardMGR agent as an always-on systemd service,
 // so enrolling a host turns it into a persistent worker that polls the master
-// every ~30s and runs due scans automatically — no hand-crafted unit per host.
+// every ~30s and runs due scans automatically: no hand-crafted unit per host.
 package service
 
 import (
@@ -67,7 +67,7 @@ func Install(configPath, masterURL string, logf Logf) error {
 	}
 
 	if masterURL == "" {
-		masterURL = "https://guard.allenjenkins.dev/docs"
+		masterURL = "https://scriptgain.com/products/guardmgr"
 	}
 	unit := fmt.Sprintf(unitTemplate, masterURL, BinPath, configPath)
 	logf("writing %s", UnitPath)

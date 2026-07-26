@@ -31,7 +31,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/license"
+	"github.com/scriptgain/guard-agent/internal/license"
 )
 
 // Canonical is the exact string the vendor signs and the agent verifies for a

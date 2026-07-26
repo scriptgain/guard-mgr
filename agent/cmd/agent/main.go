@@ -27,12 +27,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
-	"github.com/thelonelyfrog/guard/agent/internal/config"
-	"github.com/thelonelyfrog/guard/agent/internal/remediate"
-	"github.com/thelonelyfrog/guard/agent/internal/scan"
-	"github.com/thelonelyfrog/guard/agent/internal/selfupdate"
-	"github.com/thelonelyfrog/guard/agent/internal/service"
+	"github.com/scriptgain/guard-agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/config"
+	"github.com/scriptgain/guard-agent/internal/remediate"
+	"github.com/scriptgain/guard-agent/internal/scan"
+	"github.com/scriptgain/guard-agent/internal/selfupdate"
+	"github.com/scriptgain/guard-agent/internal/service"
 )
 
 var version = "dev"
@@ -145,7 +145,7 @@ func cmdEnroll(args []string) error {
 	fmt.Printf("enrolled as host %s; config saved to %s\n", resp.HostID, *cfgPath)
 
 	// Productized worker: enrolling a host turns it into an always-on poller.
-	// Best effort — if systemd/root isn't available, the operator can still run
+	// Best effort: if systemd/root isn't available, the operator can still run
 	// `guard-agent run` (or `guard-agent install`) manually.
 	if os.Geteuid() == 0 {
 		if err := service.Install(*cfgPath, *master, logf); err != nil {
@@ -245,7 +245,7 @@ func executeJob(ctx context.Context, client *api.Client, job *api.Job) {
 	case "run_updates":
 		runUpdatesAction(ctx, client, job)
 	case "apply_template", "firewall_apply", "quarantine":
-		// Reserved seams for later phases — not implemented yet.
+		// Reserved seams for later phases: not implemented yet.
 		msg := "Action '" + jobAction(job) + "' is not supported by this agent version (" + version + ")."
 		fmt.Fprintln(os.Stderr, "job:", msg)
 		_ = client.Report(ctx, job.RunID, api.Report{Status: api.RunFailed, Log: msg})

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // maldetHitRe matches a hit row in an LMD scan report, e.g.
@@ -20,7 +20,7 @@ var maldetHitRe = regexp.MustCompile(`^\{[A-Z]+\}[^:]+:\s+(/\S+)`)
 // runMaldet runs Linux Malware Detect (maldet / LMD) over the host's web/data
 // dirs. LMD is not in apt, so install is best-effort via its official
 // installer; if it is not present and cannot be installed, this records a single
-// low finding ("maldet not installed") and returns cleanly — ClamAV covers
+// low finding ("maldet not installed") and returns cleanly: ClamAV covers
 // malware in the meantime. It never hard-fails the scan.
 func runMaldet(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 	bin := maldetBin()
@@ -73,7 +73,7 @@ func runMaldet(ctx context.Context, _ Options, logf Logf) (engineResult, error) 
 		})
 	}
 	if len(res.findings) == 0 {
-		res.log = "[maldet] scan complete — no hits"
+		res.log = "[maldet] scan complete, no hits"
 	}
 	return res, nil
 }

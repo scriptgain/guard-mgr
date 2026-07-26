@@ -27,15 +27,15 @@ type Job struct {
 	Connector string   `json:"connector"` // agent
 	Engines   []string `json:"engines"`   // lynis|rkhunter|chkrootkit|clamav|maldet|ufw|fail2ban|wordpress|updates
 	// WPScanToken, when set, enables the WPScan vulnerability API in the
-	// wordpress engine. Optional — empty falls back to update heuristics.
+	// wordpress engine. Optional: empty falls back to update heuristics.
 	WPScanToken string `json:"wpscan_token,omitempty"`
 	// Remediation parameters (empty for a scan):
-	//   FixKind    — the remediation slug for a fix_finding action
+	//   FixKind   : the remediation slug for a fix_finding action
 	//                (apt-upgrade, install-pkg:<pkg>, postfix-banner,
 	//                disable-vrfy, redis-requirepass, ssh-harden:<opt>,
 	//                sysctl, rkhunter-propupd).
-	//   Target     — the finding code / free-form target the fix acts on.
-	//   UpdateMode — "security" (default) or "all" for a run_updates action.
+	//   Target    : the finding code / free-form target the fix acts on.
+	//   UpdateMode: "security" (default) or "all" for a run_updates action.
 	FixKind    string `json:"fix_kind,omitempty"`
 	Target     string `json:"target,omitempty"`
 	UpdateMode string `json:"update_mode,omitempty"`

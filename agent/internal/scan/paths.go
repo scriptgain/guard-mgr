@@ -7,8 +7,8 @@ import (
 
 // scanDirGlobs are the common web/data roots a malware scan should cover on a
 // typical Linux web host (CloudPanel, cPanel, plain nginx/apache). They are
-// bounded to web content + a couple of dropzones — never "/", never system
-// dirs — so a scan stays fast and relevant.
+// bounded to web content + a couple of dropzones: never "/", never system
+// dirs: so a scan stays fast and relevant.
 var scanDirGlobs = []string{
 	"/home/*/htdocs",
 	"/home/*/htdocs/*",

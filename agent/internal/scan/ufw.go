@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // runUfw inspects the host firewall. With ufw present it parses `ufw status
@@ -33,13 +33,13 @@ func runUfw(ctx context.Context, _ Options, logf Logf) (engineResult, error) {
 			Engine:      "ufw",
 			Code:        "ufw-inactive",
 			Title:       "Firewall Inactive",
-			Detail:      "ufw is installed but not active — the host has no packet filtering. All listening services are reachable from anywhere the network allows.",
+			Detail:      "ufw is installed but not active. The host has no packet filtering. All listening services are reachable from anywhere the network allows.",
 			Remediation: "Enable the firewall with `ufw enable` after allowing the ports you need (e.g. `ufw allow OpenSSH`).",
 		})
 		return res, nil
 	}
 
-	// Active — list allow rules as informational exposed-port findings.
+	// Active: list allow rules as informational exposed-port findings.
 	for _, line := range strings.Split(out, "\n") {
 		line = strings.TrimSpace(line)
 		fields := strings.Fields(line)
@@ -95,7 +95,7 @@ func ufwFallback(ctx context.Context, logf Logf) (engineResult, error) {
 				findings: []api.Finding{{
 					Severity: "high", Engine: "ufw", Code: "nft-empty",
 					Title:       "Firewall Ruleset Empty (nftables)",
-					Detail:      "nftables is available but its ruleset is empty — no packet filtering is in effect.",
+					Detail:      "nftables is available but its ruleset is empty. No packet filtering is in effect.",
 					Remediation: "Install a firewall front-end (e.g. ufw) or load an nftables ruleset.",
 				}},
 			}, nil

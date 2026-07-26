@@ -4,14 +4,14 @@
 // The agent runs as root on the scanned server, so each engine is a read-only
 // audit executed in-place:
 //
-//   - Lynis       — system hardening audit; its hardening_index is the score.
-//   - rkhunter    — rootkit / local-exploit warnings.
-//   - chkrootkit  — second-opinion rootkit / infection scanner.
-//   - ClamAV      — on-disk malware scan of web/data dirs.
-//   - maldet      — Linux Malware Detect scan (best effort).
-//   - ufw         — host firewall state and exposed ports.
-//   - fail2ban    — brute-force jail status (read only).
-//   - wordpress   — per-site WordPress core/plugin/theme + webshell audit.
+//   - Lynis      : system hardening audit; its hardening_index is the score.
+//   - rkhunter   : rootkit / local-exploit warnings.
+//   - chkrootkit : second-opinion rootkit / infection scanner.
+//   - ClamAV     : on-disk malware scan of web/data dirs.
+//   - maldet     : Linux Malware Detect scan (best effort).
+//   - ufw        : host firewall state and exposed ports.
+//   - fail2ban   : brute-force jail status (read only).
+//   - wordpress  : per-site WordPress core/plugin/theme + webshell audit.
 //
 // A missing engine binary is installed via apt-get when possible; if it still
 // cannot run, that engine records an informational finding and the scan carries
@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // Logf is a simple printf-style logger the caller supplies.
@@ -35,7 +35,7 @@ type Logf func(format string, a ...any)
 // It is passed to every engine runner; most ignore it.
 type Options struct {
 	// WPScanToken enables the WPScan vulnerability API in the wordpress engine.
-	// Empty falls back to update-available heuristics — the token is optional.
+	// Empty falls back to update-available heuristics: the token is optional.
 	WPScanToken string
 }
 
@@ -51,7 +51,7 @@ type engineResult struct {
 type engineFunc func(ctx context.Context, opts Options, logf Logf) (engineResult, error)
 
 // registry maps an engine key to its runner. Adding a new engine is a single
-// entry here plus its run function — no change to the dispatch loop. Keep keys
+// entry here plus its run function: no change to the dispatch loop. Keep keys
 // in sync with the master's engine list (JobController::ENGINES).
 var registry = map[string]engineFunc{
 	"lynis":      runLynis,
@@ -76,7 +76,7 @@ func Supported(key string) bool {
 // is left as "success" for the master to downgrade to "warn" on high findings.
 //
 // onEngine, when non-nil, is called immediately before each engine runs with the
-// number already completed, the total, and the engine name — the caller uses it
+// number already completed, the total, and the engine name: the caller uses it
 // to publish live progress to the master.
 func Run(ctx context.Context, engines []string, opts Options, logf Logf, onEngine func(completed, total int, engine string)) api.Report {
 	if logf == nil {
@@ -102,7 +102,7 @@ func Run(ctx context.Context, engines []string, opts Options, logf Logf, onEngin
 
 		if err != nil {
 			// Fail-soft on the scan as a whole, but an engine that could not
-			// finish means INCOMPLETE coverage — surface it as a high-severity
+			// finish means INCOMPLETE coverage: surface it as a high-severity
 			// warning (so the run rolls up to "warn", never a clean success) and
 			// keep running the other engines.
 			engineErrored = true
@@ -209,7 +209,7 @@ func runCmd(ctx context.Context, timeout time.Duration, name string, args ...str
 	}
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
-			// Non-zero exit — expected for scanners; return output, no error.
+			// Non-zero exit: expected for scanners; return output, no error.
 			return string(out), nil
 		}
 		return string(out), err

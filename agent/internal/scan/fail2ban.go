@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // runFail2ban reports the host's brute-force protection posture from fail2ban,
@@ -45,7 +45,7 @@ func runFail2ban(ctx context.Context, _ Options, logf Logf) (engineResult, error
 			findings: []api.Finding{{
 				Severity: "high", Engine: "fail2ban", Code: "fail2ban-down",
 				Title:       "fail2ban Installed but Not Running",
-				Detail:      "fail2ban is installed but its daemon is not running — no brute-force protection is active.",
+				Detail:      "fail2ban is installed but its daemon is not running. No brute-force protection is active.",
 				Remediation: "Start it with `systemctl enable --now fail2ban` and confirm with `fail2ban-client status`.",
 			}},
 		}, nil
@@ -78,7 +78,7 @@ func runFail2ban(ctx context.Context, _ Options, logf Logf) (engineResult, error
 			res.findings = append(res.findings, api.Finding{
 				Severity: "low", Engine: "fail2ban", Code: "fail2ban-bans:" + jail,
 				Title:       "Active Bans in Jail: " + jail,
-				Detail:      "fail2ban currently holds " + strconv.Itoa(current) + " banned IP(s) in the '" + jail + "' jail — evidence of ongoing brute-force attempts.",
+				Detail:      "fail2ban currently holds " + strconv.Itoa(current) + " banned IP(s) in the '" + jail + "' jail, evidence of ongoing brute-force attempts.",
 				Remediation: "Review the banned addresses (`fail2ban-client status " + jail + "`); persistent offenders can be added to the firewall permanently.",
 			})
 		}

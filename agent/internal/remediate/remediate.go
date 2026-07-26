@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
-	"github.com/thelonelyfrog/guard/agent/internal/scan"
+	"github.com/scriptgain/guard-agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/scan"
 )
 
 // Logf is a printf-style logger the caller supplies.
@@ -100,7 +100,7 @@ func RunUpdates(ctx context.Context, mode string, logf Logf) (Result, error) {
 	// host (e.g. CloudPanel-pinned repos), so it can exit non-zero having done
 	// nothing. Instead, target the packages apt itself lists from a *-security
 	// suite and upgrade exactly those with `apt-get install --only-upgrade`
-	// (deterministic, minimal blast radius). Kernel packages are excluded — they
+	// (deterministic, minimal blast radius). Kernel packages are excluded: they
 	// pull NEW packages + need a reboot, so they belong to the "all" path.
 	pkgs := securityUpgradablePkgs(ctx, env)
 	b.WriteString(fmt.Sprintf("\nsecurity updates pending (excluding kernel): %d\n", len(pkgs)))
@@ -199,7 +199,7 @@ func postconf(ctx context.Context, key, val string, logf Logf) (Result, error) {
 	if out, err := run(ctx, 30*time.Second, "postconf", "-e", key+"="+val); err != nil {
 		return Result{Log: tail(out), BackupPath: backup}, fmt.Errorf("postconf failed: %w", err)
 	}
-	// Reload is best effort — the setting is already written to main.cf.
+	// Reload is best effort: the setting is already written to main.cf.
 	if out, err := run(ctx, 30*time.Second, "postfix", "reload"); err != nil {
 		logf("postfix reload: %v (%s)", err, tail(out))
 	}
@@ -220,7 +220,7 @@ func redisRequirepass(ctx context.Context, logf Logf) (Result, error) {
 	}
 	// Persist to the config file so it survives a restart. Needs the new auth.
 	if out, err := run(ctx, 20*time.Second, "redis-cli", "-a", pw, "CONFIG", "REWRITE"); err != nil {
-		logf("redis CONFIG REWRITE: %v (%s) — set is live but may not persist a restart", err, tail(out))
+		logf("redis CONFIG REWRITE: %v (%s), set is live but may not persist a restart", err, tail(out))
 	}
 	return Result{Log: "Set Redis requirepass to a generated 24-char password: " + pw + " (record this; it is not stored by GuardMGR)."}, nil
 }
@@ -239,7 +239,7 @@ func rkhunterPropupd(ctx context.Context, logf Logf) (Result, error) {
 
 // hardenedSSH maps an sshd directive to the value we harden it to. PermitRootLogin
 // is set to prohibit-password (key-only) rather than "no" so key-based root
-// access — how GuardMGR reaches its own host — is never severed.
+// access: how GuardMGR reaches its own host: is never severed.
 var hardenedSSH = map[string]string{
 	"AllowTcpForwarding":    "no",
 	"AllowAgentForwarding":  "no",

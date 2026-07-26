@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/thelonelyfrog/guard/agent/internal/api"
+	"github.com/scriptgain/guard-agent/internal/api"
 )
 
 // wpRootGlobs are the docroots under which WordPress installs are searched for.
@@ -145,7 +145,7 @@ func auditSite(ctx context.Context, wp, site, token string, logf Logf) []api.Fin
 	owner := fileOwner(site)
 	var findings []api.Finding
 
-	// Resolve the core version — via wp-cli when available, else from
+	// Resolve the core version: via wp-cli when available, else from
 	// wp-includes/version.php on disk.
 	version := ""
 	if wp != "" {
@@ -206,7 +206,7 @@ func coreChecksumFindings(ctx context.Context, wp, site, owner string) []api.Fin
 			Severity: "high", Engine: "wordpress", Code: "wp-core-tamper:" + site,
 			Title:       "Modified WordPress Core File",
 			Detail:      site + ": " + line,
-			Remediation: "A core file does not match the official checksum — a strong sign of compromise. Reinstall core (`wp core download --force`) after backing up and investigating.",
+			Remediation: "A core file does not match the official checksum, a strong sign of compromise. Reinstall core (`wp core download --force`) after backing up and investigating.",
 		})
 	}
 	if len(findings) == 0 && ok {
@@ -269,7 +269,7 @@ func componentFindings(ctx context.Context, wp, site, owner, kind string) []api.
 					Severity: "high", Engine: "wordpress", Code: "wp-plugin-tamper:" + site,
 					Title:       "Modified Plugin File",
 					Detail:      site + ": " + line,
-					Remediation: "A plugin file differs from the wordpress.org release — possible injected code. Reinstall the plugin from a trusted source after investigating.",
+					Remediation: "A plugin file differs from the wordpress.org release, possible injected code. Reinstall the plugin from a trusted source after investigating.",
 				})
 			}
 		}
@@ -357,7 +357,7 @@ func webshellFindings(site string) []api.Finding {
 			findings = append(findings, api.Finding{
 				Severity: "high", Engine: "wordpress", Code: "wp-shell:" + relPath(site, path),
 				Title:       "Possible Webshell/Backdoor: " + filepath.Base(path),
-				Detail:      site + ": " + relPath(site, path) + ":" + strconv.Itoa(lineNo) + " matched '" + hit + "' — " + truncate(strings.TrimSpace(line), 160),
+				Detail:      site + ": " + relPath(site, path) + ":" + strconv.Itoa(lineNo) + " matched '" + hit + "': " + truncate(strings.TrimSpace(line), 160),
 				Remediation: "Inspect this file. Dynamic execution of request data or obfuscated payloads in wp-content is a classic backdoor; remove it and audit access logs.",
 			})
 		}
@@ -401,7 +401,7 @@ func scanPHPForShell(path string) (string, string, int) {
 }
 
 // suspiciousCompanions counts how many distinct webshell patterns appear on a
-// single line — two or more together is a strong obfuscation signal.
+// single line: two or more together is a strong obfuscation signal.
 func suspiciousCompanions(line string) int {
 	c := 0
 	for _, p := range webshellPatterns {
@@ -456,7 +456,7 @@ func wpRun(ctx context.Context, wp, site, owner string, args ...string) (string,
 		if _, err := exec.LookPath("sudo"); err == nil {
 			cctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 			defer cancel()
-			// `sudo -n -u owner env HOME=/tmp <cmd>` — env sets HOME safely so
+			// `sudo -n -u owner env HOME=/tmp <cmd>`: env sets HOME safely so
 			// wp-cli has a writable home; -n never prompts.
 			sudoArgs := append([]string{"-n", "-u", owner, "env", "HOME=/tmp"}, full...)
 			cmd := exec.CommandContext(cctx, "sudo", sudoArgs...)
@@ -464,7 +464,7 @@ func wpRun(ctx context.Context, wp, site, owner string, args ...string) (string,
 			if err == nil {
 				return string(out), true
 			}
-			// sudo failed (no rule / etc.) — fall through to --allow-root.
+			// sudo failed (no rule / etc.): fall through to --allow-root.
 		}
 	}
 	cctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
@@ -535,7 +535,7 @@ func wpscanPlugin(ctx context.Context, token, slug, version string, logf Logf) [
 }
 
 // wpscanGet performs an authenticated WPScan v3 GET. Returns nil on 404
-// (unknown component), rate-limit, or any error — the caller degrades to
+// (unknown component), rate-limit, or any error: the caller degrades to
 // heuristics rather than failing.
 func wpscanGet(ctx context.Context, token, path string, logf Logf) []byte {
 	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
