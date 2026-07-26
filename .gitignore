@@ -40,3 +40,6 @@ Thumbs.db
 
 # The GuardMGR scan agent (Go source) lives in this repo under /agent; only its
 # built binaries (/agent/bin, ignored above) stay out.
+
+# Go guard agent now lives in the private scriptgain/guard-agent repo.
+/agent/
