@@ -121,13 +121,25 @@ class DemoSeeder extends Seeder
 
             // ~30 days of nightly scans, score trending; findings on the latest scan.
             $days = random_int(20, 30);
-            $latestScore = random_int(38, 96);
+            // $target is where posture ENDS UP, today. It is deliberately separate
+            // from $latestScore below, which tracks the most recent run as the loop
+            // walks forward. Those used to be one variable, and because the loop
+            // reassigned it every iteration the subtraction compounded: a host
+            // seeded at 90 lost ~30 on the first old scan, then ~29 off THAT, and
+            // hit the max(20, ...) floor within three days of simulated history.
+            // Every demo host therefore read 20/100 "At Risk", which is a poor
+            // advertisement for a security product.
+            $target = random_int(38, 96);
+            $latestScore = null;
             $latestRun = null;
             for ($n = $days; $n >= 0; $n--) {
                 $start = now()->subDays($n)->setTime(2, random_int(0, 59), random_int(0, 59));
                 $status = ($online && $n < 3 && random_int(1, 100) <= 10) ? 'failed' : 'success';
                 // earlier scans score a little lower (improving posture over time)
-                $score = $status === 'failed' ? null : max(20, min(100, $latestScore - $n * random_int(0, 1) - random_int(0, 4)));
+                // $n counts DOWN to 0, so the oldest scan is the weakest and today's
+                // lands on $target. Measured from $target every time, never from the
+                // previous iteration's result.
+                $score = $status === 'failed' ? null : max(20, min(100, $target - (int) round($n * 0.9) - random_int(0, 3)));
                 $run = Run::create([
                     'scan_job_id' => $job->id, 'status' => $status, 'action' => 'scan', 'score' => $score,
                     'started_at' => $start, 'finished_at' => $status === 'failed' ? $start->copy()->addMinutes(1) : $start->copy()->addMinutes(random_int(2, 9)),
